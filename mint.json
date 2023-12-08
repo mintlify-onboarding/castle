@@ -49,20 +49,20 @@
         ]
       },
       {
-            "group": "risk_assessment",
+            "group": "Risk Assessment",
             "pages": [
               "api-reference/risk_assessment/risk",
               "api-reference/risk_assessment/filter"
             ]
           },
           {
-            "group": "logging",
+            "group": "Logging",
             "pages": [
               "api-reference/logging/log"
             ]
           },
           {
-            "group": "lists",
+            "group": "Lists",
             "pages": [
               "api-reference/lists/list-all-lists",
               "api-reference/lists/create-a-new-list",
@@ -73,7 +73,7 @@
             ]
           },
           {
-            "group": "list_items",
+            "group": "List Items",
             "pages": [
               "api-reference/list_items/create-a-new-list-item",
               "api-reference/list_items/search-list-items",
@@ -84,7 +84,7 @@
             ]
           },
           {
-            "group": "privacy",
+            "group": "Privacy",
             "pages": [
               "api-reference/privacy/request-user-data",
               "api-reference/privacy/delete-user-data",
@@ -93,7 +93,7 @@
             ]
           },
           {
-            "group": "events",
+            "group": "Events",
             "pages": [
               "api-reference/events/search-events",
               "api-reference/events/get-events-schema",
