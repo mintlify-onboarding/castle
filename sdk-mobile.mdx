@@ -1,0 +1,352 @@
+---
+title: "Mobile SDKs"
+description: "How to install, configure and use the Castle Android SDK to perform device fingerprinting and monitor user activity."
+---
+
+> 📘
+> 
+> Looking for the source code?
+> 
+> * [Android SDK](https://github.com/castle/castle-android)
+> * [iOS SDK](https://github.com/castle/castle-ios)
+> * [Flutter SDK](https://github.com/castle/castle-flutter)
+> * [React Native SDK](https://github.com/castle/castle-react-native)
+
+## Introduction
+
+The mobile SDK is a central component of the Castle integration, and provides device fingerprinting, behavioral analysis, and client-side event monitoring.
+
+All the client-side SDKs, both browser and mobile, have two main purposes:
+
+* [Create request tokens](#creating-request-tokens). Generate a unique token to be passed to your server and used when calling Castle's Risk and Filter APIs.
+* [Tracking client-side events](#tracking-client-side-events). Track important in-app events directly from the client to the Castle API.
+
+## Configuration
+
+Once installed, the SDK needs to be configured using your Publishable Key, which can be found in the [Dashboard](https://dashboard.castle.io/settings) for users with administrator access.
+
+iOS (Swift)iOS (Obj-C)Android (Java)Android (Kotlin)React NativeFlutter
+
+`import Castle
+
+// Place the below in your
+// UIApplicationDelegate application:didFinishLaunchingWithOptions:
+Castle.configure(withPublishableKey: "{Publishable-API-Key}")
+`
+
+`#import <Castle/Castle.h>
+
+// Place the below in your
+// UIApplicationDelegate application:didFinishLaunchingWithOptions:
+[Castle configureWithPublishableKey: "{Publishable-API-Key}"];
+`
+
+`import io.castle.android.Castle;
+
+// Place the below in your Application class onCreate method
+Castle.configure(application, "{Publishable-API-Key}");
+`
+
+`import io.castle.android.Castle
+
+// Place the below in your Application class onCreate method
+Castle.configure(application, "{Publishable-API-Key}")
+`
+
+`import Castle from "@castleio/react-native-castle";
+
+await Castle.configureWithPublishableKey("{Publishable-API-Key}");
+`
+
+`import 'package:castle_flutter/castle.dart';
+
+await Castle.configure(publishable_key: "{Publishable-API-Key}");
+`
+
+The mobile SDK collects fingerprint information from the device and sends this information directly to Castle. These requests are batched to optimize device performance. See the last section on how to make changes to the way Castle collects and batch-processes the data.
+
+## Creating request tokens
+
+The SDK generates a `request_token`, which is a required field in the Risk and Filter APIs.
+
+It's recommended that you forward the request token as a request header to **every request** to your API, since then you won't need to update the app whenever you're adding new server-side calls to Castle. The default value of the header is `X-Castle-Request-Token`, but you can specify the header name in the SDK configuration.
+
+> 🚧
+> 
+> Request tokens don't live forever
+> 
+> A new request token value should to be generated for **each request** to your backend. A request token will expire after 120 seconds and should only be used during a single request to your backend. It's recommended that you implement the token generation as a client-side middleware which generates a new request token with each request to your backend.
+
+##### Examples on how to pass the request token to your server
+
+iOS (Swift)iOS (Obj-C)Android (Java)Android (Kotlin)React NativeFlutter
+
+`// NSURLRequest
+request.setValue(
+  Castle.createRequestToken(),
+  forHTTPHeaderField: CastleRequestTokenHeaderName
+)
+`
+
+`// NSURLRequest
+[request setValue:[Castle createRequestToken] forHTTPHeaderField:CastleRequestTokenHeaderName];
+`
+
+`// OkHttp
+requestBuilder.header(
+    Castle.requestTokenHeaderName,
+    Castle.createRequestToken()
+);
+
+// HttpURLConnection
+httpUrlConnection.setRequestProperty(
+    Castle.requestTokenHeaderName,
+    Castle.createRequestToken()
+);
+
+// Volley
+headers.put(
+    Castle.requestTokenHeaderName,
+    Castle.createRequestToken()
+);
+`
+
+`// OkHttp
+requestBuilder.header(
+    Castle.requestTokenHeaderName,
+    Castle.createRequestToken()
+)
+
+// HttpURLConnection
+httpUrlConnection.setRequestProperty(
+    Castle.requestTokenHeaderName,
+    Castle.createRequestToken()
+)
+
+// Volley
+headers.put(
+    Castle.requestTokenHeaderName,
+    Castle.createRequestToken()
+)
+`
+
+`const requestTokenHeaderName = await Castle.requestTokenHeaderName();
+const requestToken = await Castle.createRequestToken();
+
+let requestHeaders = new Headers();
+requestHeaders.append(requestTokenHeaderName, requestToken);
+`
+
+`const requestTokenHeaderName = await Castle.requestTokenHeaderName;
+const requestToken = await Castle.createRequestToken;
+
+Map<String, String> requestHeaders = {};
+requestHeaders[requestTokenHeaderName] = requestToken;
+`
+
+The `createRequestToken` method doesn't accept any options, and it generates tokens immediately in a non-blocking way.
+
+## Tracking client-side events
+
+### Step 1\. Exposing the user object from your backend
+
+The SDK offer two methods of sending data: `screen` and `custom` (described below) depending on which type of action the user performs. Common for these calls is that a `user` object needs first be set on the global `Castle` instance. The contents of the `user` object are the same as for the the Risk and Filter APIs.
+
+Ruby
+
+`def castle_user
+  return {
+    id: 'ca1242f498', # required
+    email: '[[email protected]](/cdn-cgi/l/email-protection)', # required
+    phone: '+1415232183', # required if email is not present
+    name: 'Michael Brown',
+    registered_at: '2012-12-02T00:30:08.276Z',
+    traits: {
+      plan: 'premium'
+    }
+  }
+end
+`
+
+In order to prevent user information from being spoofed by a bad actor, it is required that you encode the user information as a signed JWT **on your backend**.
+
+From your backend code, you encode the user as a JWT and sign it using your Castle API Secret. Later, when Castle receives the JWT, the integrity of the user data will be verified to ensure that the data isn't being tampered with.
+
+Below is an example of how to generate a JWT using the Ruby language, and exposing it as an endpoint called from your mobile app:
+
+Ruby
+
+`# Put behind authorization to have access to the logged in user
+post '/castle_user_jwt' do
+  JWT.encode(castle_user, ENV.fetch('CASTLE_API_SECRET'), 'HS256')
+end
+`
+
+### Step 2\. Setting the user in your app
+
+Now that your server API exposes the `/castle_user_jwt` endpoint, you'll request it from your mobile app and put it into the `userJwt` method. This method caches the user object for subsequent requests to `screen` and `custom`.
+
+iOS (Swift)iOS (Obj-C)Android (Java)Android (Kotlin)React NativeFlutter
+
+`Castle.userJwt("eyJhbGc..xnH0")
+`
+
+`[Castle setUserJwt:@"eyJhbGc..xnH0"];
+`
+
+`// IMPLEMENT: fetch the user JWT from your /castle_user_jwt endpoint
+
+Castle.userJwt("eyJhbGc..xnH0");
+`
+
+`// IMPLEMENT: fetch the user_jwt from your /castle_user_jwt endpoint
+
+Castle.userJwt("eyJhbGc..xnH0")
+`
+
+`await Castle.userJwt('eyJhbGc..xnH0');
+`
+
+`await Castle.userJwt("eyJhbGc..xnH0");
+`
+
+### Step 3\. Sending screen views from your app
+
+Passing the title of each screen view to Castle offers your analysts detailed insights into user patterns that will help uncover complex fraud patterns. It's recommended that you centralize this logic so that you won't have to explicitly call `screen` for each new screen view. At the very least, it's recommended that you call `screen` for each step in the user onboarding flow, as well as any critical views such as transactions or user settings.
+
+iOS (Swift)iOS (Obj-C)Android (Java)Android (Kotlin)React NativeFlutter
+
+`Castle.screen(name: "Onboarding – Verify documents")
+`
+
+`[Castle screenWithName:@"Onboarding – Verify documents"];
+`
+
+`Castle.screen("Onboarding – Verify documents");
+`
+
+`Castle.screen("Onboarding – Verify documents")
+`
+
+`await Castle.screen('Onboarding – Verify documents');
+`
+
+`await Castle.screen("Onboarding – Verify documents");
+`
+
+### Step 4\. Sending custom events from your app
+
+Any user action that isn't covered by screen views can be tracked by calling the `custom` function. This also allows you to send custom properties related to the user action.
+
+iOS (Swift)iOS (Obj-C)Android (Java)Android (Kotlin)React NativeFlutter
+
+`let properties = [
+    "product": "iPhone 13 Pro",
+    "price": 1099.99
+]
+Castle.custom(name: "Added to Cart", properties: properties)
+`
+
+`NSDictionary *properties = @{
+    @"product": @"iPhone 13 Pro",
+    @"price": 1099.99
+};
+[Castle customWithName:@"Added to Cart"
+            properties:properties];
+`
+
+`Castle.custom("Added to Cart", Map.of(
+   "product", "iPhone 13 Pro",
+   "price", 1099.99
+));
+`
+
+`Castle.custom("Added to Cart", mapOf(
+   "product" to "iPhone 13 Pro",
+   "price" to 1099.99
+))
+`
+
+`await Castle.customWithProperties('Added to Cart', {
+  product: 'iPhone 13 Pro',
+  price: 1099.99
+});
+`
+
+`await Castle.custom("Added to Cart", {
+  "product": "iPhone 13 Pro",
+  "price": 1099.99
+});
+`
+
+## Additional configuration
+
+The SDK allows for additional configuration options. Please refer to the documentation packaged with the SDK code for full details.
+
+iOS (Swift)iOS (Obj-C)Android (Java)Android (Kotlin)React NativeFlutter
+
+`// Create configuration
+let configuration = CastleConfiguration(publishableKey: "{Publishable-API-Key}")
+configuration.isDebugLoggingEnabled = false // Default
+configuration.flushLimit = 20 // Default
+configuration.maxQueueLimit = 1000 // Default
+
+// Setup Castle SDK with provided configuration
+Castle.configure(configuration)
+`
+
+`// Create configuration object
+CastleConfiguration *configuration = [CastleConfiguration configurationWithPublishableKey:@"{Publishable-API-Key}"];
+configuration.debugLoggingEnabled = NO; // Default
+configuration.flushLimit = 20; // Default
+configuration.maxQueueLimit = 1000; // Default
+    
+// Setup Castle SDK with provided configuration
+[Castle configure:configuration];
+`
+
+`ArrayList<String> baseURLAllowList = new ArrayList<>();
+
+CastleConfiguration configuration = new CastleConfiguration.Builder()
+  .publishableKey("{Publishable-API-Key}")
+  .debugLoggingEnabled(false) // Default
+  .flushLimit(20) // Default
+  .maxQueueLimit(1000) // Default
+  .build();
+
+// Setup Castle SDK with provided configuration
+Castle.configure(application, configuration);
+`
+
+`val configuration = CastleConfiguration.Builder()
+  .publishableKey("{Publishable-API-Key}")
+  .debugLoggingEnabled(false) // Default
+  .flushLimit(20) // Default
+  .maxQueueLimit(1000) // Default
+  .build()
+
+// Setup Castle SDK with provided configuration
+Castle.configure(application, configuration)
+`
+
+`const configuration = await Castle.configure({
+  publishableKey: "{Publishable-API-Key}",
+  debugLoggingEnabled: false,
+  flushLimit: 20, // default: 20
+  maxQueueLimit: 1000 // default: 1000
+});
+`
+
+`await Castle.configure(
+  publishable_key: "{Publishable-API-Key}",
+  debugLoggingEnabled: false, // Default
+  flushLimit: 20, // Default
+  maxQueueLimit: 1000 // Default
+);
+`
+
+The `flushLimit` is the number of events that will trigger a flush and the `maxQueueLimit` is the maximum number of events that will be stored in the queue before the oldest events starts to get purged. This would only happen if the Castle API stops, or the user doesn’t have an internet connection for a longer period. It's recommended that you don't change these settings until you've consulted with Castle support.
+
+#### Queue flushing
+
+The SDK queues API calls to save battery life, and it only flushes queued events to the Castle API whenever the app is installed, updated, opened or closed, or when the queue reaches 20 events.

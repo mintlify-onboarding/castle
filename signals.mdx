@@ -1,0 +1,36 @@
+---
+title: "Signals"
+---
+
+## Background
+
+Signals represent key inputs to Castle's risk score calculation, which can also be used when building stand-alone risk logic into your application, or as part of the Castle-hosted policy configuration.
+
+Understanding the signals present when an event was evaluated can provide insight into why Castle's risk score is set at a particular value. Signals do not deterministically predict the numerical risk score, but they may often be correlative to high risk scores. 
+
+## Transparent data
+
+Castle strives to be a transparent account security and risk mitigation platform. We expose any triggered signals as part of the API response. These signals are grouped into a few categories:
+
+* Automated activity
+* Anomalous behavior
+* Device data error
+* Device intelligence
+* Email intelligence
+* IP intelligence
+* Unobserved characteristics
+* Unapproved characteristics
+
+The full list of signals that we expose can be found in our [Signals](/docs/signals-reference) reference page.
+
+## Enabling in-house risk analysis
+
+Castle's signals from response can be logged and analyzed with your available application data tools and platforms. Since Castle provides the data in the API response, this signal data can be aggregated alongside the risk score and any other user or event context data that feeds into your application and account risk management tools.
+
+Logging signals and risk scores will allow security teams to perform internal analysis of which signals are predictive of malicious behavior within your application.
+
+## Signals lead to policies
+
+If your internal analysis of signals and risk scores leads to high positive predictive rates of security events, then Castle policies fully support the ability to introduce `challenge` or `deny` verdicts alongside those signals and risk scores in our API response.
+
+Should you decide to set up policies based on signal analysis, we offer the ability to create Log-only policies in order to test the effectiveness of these policies before making them "go live" in your environment(s). Castle webhooks will still be triggered whenever a `challenge` or `deny` verdict is issued for a device for the first time, allowing you full customizability when it comes to alerting and follow-up workflows.

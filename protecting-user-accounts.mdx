@@ -1,0 +1,53 @@
+---
+title: "Protecting User Accounts"
+---
+
+## Account takeover definition
+
+Account takeover occurs when a user account is taken over by a bad actor. When talking about account takeover, we're commonly talking about this scenario in the context of online applications and end-user accounts for these applications. Account takeover can happen in many different ways, including leaked passwords, phishing, and even intercepted SMS messages. Account takeover is a very difficult problem to detect, because these attacks are usually not "hacks" of the application. Rather, the bad actor uses the regular login form that every other user visits, but they enter a username and password that belongs to someone else.
+
+### The user blames the application for their experience
+
+When account takeover occurs because of a leaked password, or because of a user's gullibility in a phishing scam, there is a tendency to attribute the fault to the user. However, the user probably doesn't believe the fault is their own. If a user's leaked, re-used password results in an account takeover on one application, but not at other applications where they use the same password, the user will blame the one application for letting someone hack into their account.
+
+### Account takeover is a growing threat
+
+[Troy Hunt's "Pwned Passwords"](https://haveibeenpwned.com/Passwords) has grown steadily since it was released in August 2017\. Since then, the number of breached passwords on the list has increased steadily from 306 million to 613 million as of late 2020\. **The number of leaked passwords, according to "Pwned Passwords", has more than doubled in a span of three years.**
+
+### Credential stuffing attacks are increasingly complex
+
+When a bad actor gets hold of a new credential list, they will use that new credential list to run attacks on applications. The intent of these attacks is to discover accounts that exist for the exposed emails, as well as to find which passwords on the list are valid for the associated email addresses. These attacks will utilize the login, registration, and password reset endpoints in order to discover and take over accounts with these newfound credentials.
+
+[We published a blog post comparing Castle's effectiveness in blocking two attacks - one complex and one simpler](https://blog.castle.io/how-effective-is-castle-against-credential-stuffing/). The post mentions that for the complex attack, for 60,000 login attempts we saw more than 20,000 distinct `User-Agents` used, logging in from more than 5,000 distinct IP addresses, nearly all from the USA and Canada. Firewall rules are often not sufficient when it comes to blocking most requests from these kinds of complex attacks.
+
+## Protecting accounts
+
+Let's talk about some effective ways to guard against account takeover, and let's also look at reasons why these solutions may fall short of requirements to balance security and usability.
+
+### Good password policies
+
+Good password policies are effective, but they can only do so much. They can't determine when a user is re-using a password that they've used elsewhere in the past. They may also encourage bad practices, such as typing `!1` at the end of a re-used password in order to meet password policy requirements. This can, ironically, lead to weaker passwords.
+
+### Password managers
+
+Password managers are extremely useful, and we fully support their use and adoption. However, they can be complex to set up, and they have failed to gain traction with most users.
+
+### Multifactor authentication
+
+Multifactor authentication is a wonderful solution that increases user account security, and we at Castle believe that every user account _should_ have at least two factors of authentication (such as password + email) _available for use when needed_.
+
+The key phrase in the last sentence is _when needed_. MFA introduces a lot of friction into the user experience. For some applications, this is not important. For other applications, **this friction can result in the user leaving the application**. Castle believes that MFA need not be triggered when we can reliably determine that the user is accessing their account from an approved device. **Castle helps strike the perfect balance between security and usability by informing the application (in real time) when MFA should be initiated**.
+
+### Using Castle
+
+Using Castle is a great way to protect against Account Takeover. Castle can analyze events in real-time and provide data and recommendations about the riskiness of these events. Castle informs applications when they should `allow`, `challenge`, or `deny` events. This analysis can be performed at any point in an application, including login, sign-up, transactions, profile updates, password resets, and any other activities.
+
+**Castle is complementary to all other account protection solutions you may have in place for your application**. Whether MFA is implemented, or you already use "Pwned Passwords" to prevent users from choosing leaked passwords, Castle can still bring an extra layer of security to your user accounts _while also supporting a smoother User Experience_.
+
+## Account recovery
+
+Updating password policies, MFA, and using a tool like Castle at the login endpoint are all great ways to protect against future account takeover, but a full solution must also automate the end-user notification and account recovery process.
+
+Castle's suite of product offerings, including our webhook notifications, device management API, and customizable Policies, allow you to automate the user notification and account recovery process. Device blocking and unblocking is available both via API calls and within the Castle Dashboard. Reports can be generated to view the active "threats" on user accounts, as well as threats that have been "mitigated".
+
+Castle provides the tools needed to detect suspicious activity, block unauthorized access, and automatically initiate recovery workflows from in-application account exploitations.

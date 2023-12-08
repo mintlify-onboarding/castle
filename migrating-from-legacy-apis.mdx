@@ -1,0 +1,146 @@
+---
+title: "Upgrading to the new APIs"
+description: "A guide on how to migrate from the legacy Authenticate and Track APIs to the new Risk, Filter, and Log APIs."
+---
+
+## Introduction
+
+On June 3, 2021, we launched a new set of API endpoints as well as 2.0 versions of our client-side SDKs. The new endpoints run a more comprehensive fraud detection model, as opposed to the legacy model that was mainly tuned to detect account takeovers.
+
+Some of the benefits of upgrading:
+
+* **risk scoring of account registrations and transactions** based on a range of new fraud and abuse patterns, such as multi-accounting, device spoofing, and unusual app interactions. The old APIs support these use-cases as well, but those risk models are mainly tuned to detect account takeover fraud
+* **better identification of unique global devices** through a new device fingerprinting algorithm. Exposes the unique fingerprint identifier in the event payload which allows for granular rules building
+* **prevents bad actors from replaying client-side requests** through a more secure and tamperproof client-side data collector
+* any future improvements to risk models and device fingerprinting will only be deployed to the new endpoints, unless they are bug fixes
+
+## Guide
+
+### Step 1\. Upgrading the client SDKs
+
+You'll need to complete this step before starting the upgrade of the server-side code.
+
+Start by updating the [client-side SDKs](/docs/client-side) to the following versions:
+
+* [Browser SDK](/docs/sdk-browser) – **2.1.5** or later. If you're using the CDN version, you'll need to switch to using the NPM package. Please make sure you understand the [breaking changes](/docs/sdk-browser#breaking-changes) introduced in the 2.x version.
+* [Android](/docs/sdk-android) – **2.1.3** or later
+* [iOS](/docs/sdk-ios) – **2.1.8** or later
+* [Flutter](/docs/sdk-flutter) – **1.1.3** or later
+* [React Native](/docs/sdk-react-native) – **1.1.3** or later
+
+Update on the message on the mobile SDK fix form yesterday. It turns out the version is not 2.1.6 for all SDKs, but they’ll be as follows:
+
+The most important update is that the new server-side APIs consume the so-called _Request Token_ instead of the legacy _Client ID_.
+
+* The new `request_token` string needs to be generated in the client **right before any backend request** that's going to be sent to Castle, since **it expires after 120 seconds**.
+* It will need to be **present on 100% of your requests** to the Risk and Filter APIs. Any missing request tokens will result in an API validation error.
+
+##### Forcing your users to update their mobile apps
+
+If you have the option of forcing your users to update their app version the next time they open it, then that's the simplest way of ensuring all of your users have migrated to the new Castle SDK.
+
+However, **if you're unable to do a force update**, you have the option of sending requests from the old SDKs to the `/authentication` and `/track` endpoints up until May 15, 2022\. Alternatively, you can use the Log API to log these events to the user timeline without performing any risk scoring. After May 15, 2022, the old endpoints will no longer be maintained.
+
+### Step 2\. Passing the request token to the _legacy_ APIs
+
+Now you'll need to make a minor update to your server-side integration of Castle. You're likely already sending events to `/authenticate` or `/track` which we are going to leave intact in this step.
+
+However, you will retrieve the `request_token` from Step 1 and pass that as the `client_id` field in the legacy API. Yes, the legacy APIs accept the new request tokens, but the new Risk and Filter APIs do not accept the old `client_id`, which is why we in the next step will need to ensure that 100% of the events are sent using the request token before switching the server-side endpoints.
+
+##### Example of a legacy API request
+
+Replace the `INSERT_REQUEST_TOKEN_HERE` part with the request token you retrieve from the new client SDK
+
+cURL
+
+`curl -s https://api.castle.io/v1/authenticate \
+  -X POST \
+  -u ":$YOUR_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '
+  {
+    "event": "$login.succeeded",
+    "user_id": "1234",
+    "user_traits": {
+      "email": "[[email protected]](/cdn-cgi/l/email-protection)"
+    },
+    "context": {
+      "client_id": "INSERT_REQUEST_TOKEN_HERE",
+      "ip": "37.46.187.90",
+      "headers": {
+        "Accept": "application/xml",
+        "Accept-Encoding": "gzip, br",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_9 rv:2.0; MK) AppleWebKit/538.0.2 (KHTML, like Gecko) Version/5.0.0 Safari/538.0.2/765.251",
+        "Accept-Charset": "utf-8",
+        "Accept-Language": "en-us",
+        "Host": "http://example.com",
+        "Referer": "http://ignacio.net"
+      }
+    }
+  }' | json_pp
+`
+
+### Step 3\. Deploying and verifying the integration
+
+Once you've deployed the client-side and server-side updates, head over to the Events tab in the Castle dashboard and click on one of the events to bring up its details. Scroll down to the bottom of the details panel to reveal the "SDK" section. Add all four fields as columns by clicking "Add column" on each of them:
+
+![](/images/ec973af-image_2.png "image 2.png")
+
+This will add the SDK details to the table so that you can easily see which SDKs were used to create each event:
+
+![](/images/1582363-image_3.png "image 3.png")
+
+You can also apply filters to the SDK name and version to ensure that every request is of the correct version. It's **critical** that you complete this step before moving to Step 4.
+
+### Step 4: Swapping out the server-side code
+
+> ❗️
+> 
+> Make sure you've completed steps 1-3
+> 
+> The new APIs will return an error when the `request_token` (previously `client_id`) is missing or invalid, so it's important that you validate that it's present on 100% of your requests before switching to the new APIs.
+
+Once you've validated that 100% of your requests now contain the new request token as opposed to the Client ID, you're ready to switch over to the new APIs:
+
+* `/v1/risk` \-- Similar to calling `/v1/authenticate` **with** `user_id`. See [the API reference](https://reference.castle.io/#operation/risk).
+* `/v1/filter` \-- Similar to calling `/v1/authenticate` **without** `user_id`, which is likely what you're currently using `/v1/track` for today. See [the API reference](https://reference.castle.io/#operation/filter).
+
+There's also `/v1/log` that won't provide a risk score nor any risk signals. See [the API reference](https://reference.castle.io/#operation/log). This endpoint does not require the `request_token` and is primarily intended for out of band events such as transaction or identity verification data from other risk tools.
+
+You might want to check out the guides on how to implement the [login](/docs/login-activity) and [registration](/docs/registration-activity) events using the new APIs.
+
+> 🚧
+> 
+> It's strongly recommended that you read through the [new integration overview](/docs/a-full-integration), including all the guides on how to add login, registration, profile update, and transaction events.
+
+#### Updates to the request payload
+
+| Old field                   | New field           | Comment                                                                              |
+| --------------------------- | ------------------- | ------------------------------------------------------------------------------------ |
+| event                       | type                | Format changed from $login.succeeded to $login                                       |
+| N/A                         | status              | The last part of the old event, e.g. $succeeded                                      |
+| context.client\_id          | request\_token      | Requires version 2.0 of the client SDKs. Will generate a request error when invalid. |
+| user\_id                    | user.id             | Attribute moved                                                                      |
+| user\_traits                | user.traits         | Object moved                                                                         |
+| user\_traits.email          | user.email          | Attribute moved                                                                      |
+| user\_traits.name           | user.name           | Attribute moved                                                                      |
+| user\_traits.registered\_at | user.registered\_at | Attribute moved                                                                      |
+
+#### Updates to the response payload
+
+| Old format    | New format    | Comment |
+| ------------- | ------------- | ------- |
+| device\_token | device.token  |         |
+| action        | policy.action |         |
+
+#### Other changes in functionality
+
+* **Custom events** (i.e. events not starting with `$`) should be sent as `type: "$custom"` with `name: "Your Custom Name"`
+* **The `$password_reset` event** has been renamed `$profile_reset`.
+* **The `$session.extended` event** has been deprecated. Instead, send a custom event such as `name: "Session Extended"`
+* **_Impersonation Mode_ has been deprecated**. You should instead make sure you disable Castle when your support team impersonate customers, and if you want to keep track of impersonation events in Castle, simply send a custom event to `/log` and call it something like "User was impersonated by Lisa R.".
+* **The `$challenge.succeeded` event** no longer have the automatic side effect of approving a device (setting the score to 0). For this, instead [use lists to set up a similar flow](/docs/tutorial-trust-a-users-device-for-14-days)
+
+### Step 5\. Deploying the new server-side APIs
+
+Now you're ready to go live with your fully upgraded integration. If you happened to miss upgrading any of the code to use the new request tokens, it will throw an `invalid_request_token` exception. In that case, we recommend rolling back your deployment and fixing the integration before going back live. You can always use the legacy and the new APIs in parallel to test things out until you've got it right.

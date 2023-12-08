@@ -1,0 +1,60 @@
+---
+title: "Enabling Two-Factor Auth"
+---
+
+Castle's 2FA abides by the [TOTP IETF standard](https://tools.ietf.org/html/rfc6238). Simply put, a wide range of mobile authenticator apps support 2FA for Castle's dashboard users, including the following:
+
+* Authy
+* Bitium Vault
+* Duo
+* Google Authenticator
+
+## Enabling 2FA
+
+To set up 2FA on your Castle dashboard account, go to your Account settings page via the dropdown menu in the upper right corner of the dashboard.
+
+![](/images/e300999-1.image.png "1.image.png")
+
+Next, select the [Security tab](https://dashboard.castle.io/account/security). Under the **Two-Factor Authentication** section, click Enable.
+
+![](/images/6f91393-2.image.png "2.image.png")
+
+A new tab will open, presenting you with a QR Code to scan with your preferred authenticator app. A manual code is also provided if needed. After scanning the QR Code, enter the one-time password into the text field and click **Continue**.
+
+![](/images/11fc487-3.image.png "3.image.png")
+
+You now have 2FA enabled on your Castle account. Next time you are prompted to enter your 2FA code, refer to the authenticator app that you used during configuration.
+
+## Verifying Your 2FA Setup
+
+You can verify that 2FA is set enabled on your account by refreshing your Account Security Settings page and confirming the "disabled" text has changed to "enabled"
+
+![](/images/6f7db18-4.image.png "4.image.png")
+
+## 2FA Verification for Team Admins
+
+Team administrators can check which team members have enabled 2FA on their account by visiting the Team page via the dropdown menu in the upper right corner of the dashboard.
+
+![](/images/11b44f3-5.image.png "5.image.png")
+
+If you are a Castle admin and want to make 2FA required for all members of your organization, please see our article on [Setting up Required 2FA for your Castle Org](/docs/enforcing-two-factor-auth). 
+
+---
+
+## Troubleshooting
+
+### Lost device
+
+If you've lost your device where you set up and generate the codes, please reach out to [\[email protected\]](/cdn-cgi/l/email-protection#7b080e0b0b14090f3b181a080f171e551214) and we'll help you. 
+
+### Multiple Entries in the Authenticator App
+
+Authenticator apps can create multiple entries for accounts within the same service. Since each entry produces a different code, it can be difficult to choose the right one.
+
+If your authenticator app shows multiple entries for Castle, delete any unneeded entries so that you avoid confusion about which one contains the correct code.
+
+Note that there have been [reports of problems removing unwanted entries](https://apple.stackexchange.com/questions/280429/) from some iPhone versions of the Google Authenticator app. As of August 2020, reports of these problems persist. If this becomes an obstacle for you, a different authenticator app can be used.
+
+### No Prompt on Login
+
+Using Castle on our own dashboard gives us confidence in allowing indefinitely long sessions as long as your device doesn’t look suspicious. Your session will remain open until Castle detects that you deserve to be challenged. The Castle value proposition treats this as a feature in that 2FA friction can be avoided until truly necessary.

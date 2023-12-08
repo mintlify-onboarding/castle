@@ -1,0 +1,299 @@
+---
+title: "Webhooks"
+description: "Subscribe to webhooks to automate fraud and security workflows"
+---
+
+## Introduction
+
+Webhooks is a way for Castle to communicate directly with your application, when certain conditions are met, like when e.g. suspicious accounts or devices are detected. This way you can use Castle to automate task like suspending these suspicious accounts, marking them for review, or any other relevant business action you may way to take. Webhooks can be triggered based on the following:
+
+* Whenever a certain [Policy](/docs/creating-a-policy) match
+* Whenever a specific action (allow, challenge or deny) is returned by the Policy evaluation.
+* Whenever an item is added or removed from a [List](/docs/lists)
+
+## Webhook events
+
+To inform your application which type of trigger condition happened, Castle adds an event name to the payload of the webhook. Below is a list of available events, and their meaning
+
+| Event name                                           | Description                                                                                              |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| [$list\_item.created](/docs/webhooks#list-triggered) | A new item was added to a List. By default, new items are active and will match against incoming events. |
+| $list\_item.archived                                 | An item in a list was archived and is no longer present in the list (equivalent to removed)              |
+| $list\_item.unarchived                               | A previously archived item was un-archived and is now present in the list again                          |
+| [$policy.matched](/docs/webhooks#policy-triggered)   | The conditions of a policy matched                                                                       |
+
+## Configuring webhooks
+
+To set up a new webhook, either navigate to the Policy page or the Lists page, depending on what type of condition you'd like the webhook to be based on. On each of these page, there is a tab called "Integrations" where you'll find any existing Webhooks as well as the ability to set up a new one. Just click "Add Integration".
+
+> 💡
+> 
+> On the integrations tab you also have the possibility to set up other types of notifications, like eg. Slack
+
+![](/images/50769bc-webhook_per_list.gif) 
+
+Alternatively, a new webhook can be configured directly from a List or Policy entry
+
+![Setting up a webhook directly from a Policy](/images/c753be4-image.png)
+
+Setting up a webhook directly from a Policy
+
+## Server side implementation
+
+Below outline the necessary technical steps to prepare your application for receiving webhooks from Castle in a secure and robust way.
+
+Whenever conditions for triggering webhooks are met, Castle will send an HTTP POST request to the configured endpoint URL using a JSON formatted data payload. At minimum, the webhook endpoint needs to expect and handle an HTTP POST request and confirm successful receipt of the data by returning a `2xx` HTTP status code. Below are the key steps for successfully building out a webhook endpoint
+
+> 📘
+> 
+> HTTPS URL
+> 
+> If you are using an HTTPS URL for your webhook endpoint, Castle will validate that the connection is secure and your server must be correctly configured with a valid certificate.
+
+### Try out the Castle webhooks
+
+Before starting the implementation, it can be useful to try out the webhooks functionality and get to know the data:
+
+1. Use a service like [Webhook Tester](https://webhook.site) to set up a temporary endpoint
+2. Configure a new webhook trigger via the Castle Dashboard. For example, you can configure a [Castle Policy](/docs/creating-a-policy) to trigger a webhook whenever the email domain `example.com` is observed.
+3. Then send a test request to Castle with the `params.email` set to `[[email protected]](/cdn-cgi/l/email-protection)`
+4. Watch the webhook appear in the web interface of Webhook Tester
+
+### Parse the payload
+
+The data in the webhook request sent by Castle will be formatted using JSON and this will be indicated by the `Content-Type` HTTP header which will be set to `application/json` . For a complete specification and example of the content of the request body, see the [example webhook](#example-webhook). Your code for handling webhooks is expected to parse the request body into an object.
+
+### Respond with a status code
+
+To let Castle know that you have received the webhook successfully, your endpoint must return a `2xx` HTTP status code. Codes that are not in this range, including `3xx` codes, will be treated as unsuccessful by Castle.
+
+`4xx` and `5xx` HTTP status codes typically indicate an issue with your endpoint. `4xx` indicates Castle sent a request to your server, but the endpoint was not valid, such as a `404` which indicates that the path doesn't exist. If a `5xx` code is returned this usually indicates an unhandled exception in your application code.
+
+> 📘
+> 
+> Retries
+> 
+> In case of failure, Castle will attempt to deliver your webhooks up to **four additional times** with exponential back off before giving up. The retry logic is applied whenever a non `2xx` code is returned
+
+### Test your webhook endpoint
+
+To test your webhook implementation, follow the same steps outlined in the above section for trying the Castle Webhooks, and simply replace the URL to your publicly facing application webhook URL. It's a good idea to continuously test your webhooks endpoint implementation, especially:
+
+* Upon Creation of a webhook endpoint
+* After deploying it to a live environment
+* After making any changes
+
+### Check the signature
+
+This step is optional, but highly recommended. Since a webhook endpoint is a publicly facing URL, anyone could potentially send requests to it, pretending to be Castle, if they got hold of the URL. In order to protect from spoofing, Castle includes a _signature header_, `X-Castle-Signature`, in the request so that you can verify the authenticity of the request. The signature is a [Hash-based Message Authentication Code](https://en.wikipedia.org/wiki/HMAC) using the SHA256 hashing function (HMAC-SHA256) and is computed with the raw JSON request body together with the API secret. To validate the request, simply compute the HMAC within the code that handles the webhook and compare it to the value sent in the signature header. The two values should match.
+
+**Example signature checking code:**
+
+Ruby
+
+`require 'json'
+
+# Using Sinatra
+require 'rubygems'
+require 'base64'
+require 'openssl'
+require 'sinatra'
+
+helpers do
+  # Compare the computed HMAC digest based on the shared secret and the
+  # request contents to the reported HMAC in the headers
+  def verify_webhook(data, hmac_header)
+    digest  = OpenSSL::Digest.new('sha256')
+    calculated_hmac =
+      Base64.encode64(OpenSSL::HMAC.digest(
+        digest,
+        'YOUR_API_SECRET',
+        data)
+      ).strip
+    calculated_hmac == hmac_header
+  end
+end
+
+# Respond to HTTP POST requests sent to this web service
+post '/' do
+  request.body.rewind
+  data = request.body.read
+  hmac_header = request.headers['X-Castle-Signature']
+  verified = verify_webhook(data, hmac_header)
+
+  # IMPLEMENT: handle the alert
+
+  # Output 'true' or 'false'
+  puts "Webhook verified: #{verified}"
+end
+`
+
+---
+
+## Allowlisting Castle IPs
+
+For additional security, you may want to ensure that the webhooks hitting your endpoint are in fact from Castle. 
+
+**Production** webhooks will always be sent from the following set of IP Addresses:
+
+`34.194.74.182
+23.20.75.190
+34.194.26.104
+`
+
+## Example webhook data
+
+### Policy triggered
+
+JSON
+
+`{
+  "api_version": "v1",
+  "app_id": "598653631847139",
+  "created_at": "2023-09-22T08:39:42.459Z",
+  "type": "$policy.matched",
+  "data": {
+    "policy": {
+      "id": "f57e3249-2129-4c67-a2f9-924cd05505d2",
+      "revision_id": "",
+      "name": "Trust @legit.io",
+      "action": "challenge"
+    },
+    "event": {
+      "id": "2VkF4nH7pn7K9DxnLBKCLZ84HBb",
+      "name": "Login Succeeded",
+      "type": "$login",
+      "status": "$succeeded",
+      "created_at": "2023-09-22T08:39:42.363Z",
+      "authenticated": true,
+      "authentication_method": {
+        "type": "$password"
+      },
+      "changeset": {},
+      "device": {
+        "fingerprint": "aCAXlJcVTrqKWxn6FJZKNA",
+        "software": {
+          "languages": [
+            "en-gb",
+            "en-us",
+            "en"
+          ],
+          "type": "browser",
+          "name": "Chrome",
+          "version": {
+            "major": "116",
+            "full": "116.0.0"
+          }
+        },
+        "timezone": {
+          "offset": 120,
+          "name": "Europe/Warsaw"
+        },
+        "os": {
+          "name": "Mac OS X",
+          "version": {
+            "major": "Catalina",
+            "full": "10.15.7"
+          }
+        },
+        "hardware": {
+          "name": "Mac",
+          "brand": "Apple",
+          "type": "computer",
+          "display": {
+            "width": 3840,
+            "height": 2160
+          }
+        },
+        "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36",
+        "screen": {
+          "density": 1
+        }
+      },
+      "email": {
+        "normalized": "[[email protected]](/cdn-cgi/l/email-protection)",
+        "domain": "legit.io",
+        "disposable": false
+      },
+      "endpoint": "/v1/risk",
+      "ip": {
+        "address": "10.50.1.173",
+        "privacy": {
+          "anonymous": true,
+          "datacenter": false,
+          "proxy": false,
+          "tor": false
+        },
+        "type": "ipv4"
+      },
+      "policy": {
+        "action": "challenge",
+        "id": "f57e3249-2129-4c67-a2f9-924cd05505d2",
+        "name": "Trust @legit.io",
+        "revision_id": "ecc6784f-0c69-4373-89b3-ec98471e4af9"
+      },
+      "scores": {
+        "account_abuse": {
+          "score": 0.845
+        },
+        "account_takeover": {
+          "score": 0.396
+        },
+        "bot": {
+          "score": 0.033
+        }
+      },
+      "sdks": {
+        "client": {
+          "name": "castle-web",
+          "version": "2.1.8"
+        }
+      },
+      "user": {
+        "id": "68776fee69c9c520022ea3267b5216b1",
+        "email": "[[email protected]](/cdn-cgi/l/email-protection)"
+      },
+      "signals": {
+        "multiple_accounts_per_device": {}
+      }
+    }
+  }
+}
+`
+
+### List triggered
+
+JSON
+
+`{
+  "api_version": "v1",
+  "app_id": "598653631847139",
+  "created_at": "2023-09-22T10:02:44.292Z",
+  "type": "$list_item.created",
+  "data": {
+    "id": "42bc2f4d-64d1-4291-a77f-61c64bd410a0",
+    "primary_value": "68776fee69c9c520022ea3267b5216b1",
+    "secondary_value": null,
+    "auto_archives_at": null,
+    "author": {
+      "type": "$castle_policy",
+      "identifier": "25e54542-7794-48ee-aca0-e0bbe6c82247",
+      "details": {
+        "policy": {
+          "id": "25e54542-7794-48ee-aca0-e0bbe6c82247",
+          "revision_id": "",
+          "name": "Webhook Test",
+          "action": "allow"
+        }
+      }
+    },
+    "comment": null,
+    "list": {
+      "id": "a7f498f2-5788-40f0-9ebd-fdef3029ad59",
+      "name": "Multi Accounting",
+      "primary_field": "user.id",
+      "secondary_field": null
+    }
+  }
+}
+`

@@ -1,0 +1,26 @@
+---
+title: "Failed Logins"
+description: "Castle uses login failures as a signal that ultimately helps you decide whether a successful login is coming from a trustworthy device"
+---
+
+When a user logs in to your app with the correct email and password, you can use Castle to decide whether that login attempt looks trustworthy or whether it should be challenged or denied. Even if you only care about successful and trustworthy login attempts, there are good reasons to track failures as well.
+
+## Failed logins are anonymous
+
+First, it is important to know that failed logins are considered anonymous events, even if an existing user will match the provided E-mail address. In Castle, this means that a failed login may be recorded as an event under a certain user ID, so that it's visible when inspecting that user's activity. But it won't have any impact on the user's device or location history, which means that signals like `new_device` or `new_country` won't be generated. 
+
+[Read more about anonymous activity here](/docs/anonymous-activity)
+
+## Castle Learns Patterns Of Suspicious Behavior
+
+The more signals Castle collects, the stronger it becomes in distinguishing suspicious devices from those that can be trusted. Device signatures that appear normal for a particular user are more likely to carry a low-risk score on that user's account. Device signatures with unusual behavior are more likely to carry a high-risk score, particularly when they attempt to access multiple user accounts and exhibit a high rate of failure.
+
+One of the strongest indicators that your app is under attack is to experience an unusual spike in login attempts for a given time of day or day of the week, and especially where the increase is almost entirely login failures. In such a case, the attacker is providing a wealth of information about devices used in the attack, so tracking these failed logins to Castle is valuable. This information can later be used to assign a high-risk score to any matching devices.
+
+## Other Types Of Failure Events
+
+A challenge failure carries a signal very similar to a login failure and valuable in the same way. While less obvious, registration failures are valuable too.
+
+One way for a registration to fail is for the sender to submit a registration request with a user ID or email field left blank. Even this signal can be valuable. For example, thousands of registration failures lacking an email coming from the same IP address in a short period of time could indicate a bot probing for weaknesses in the registration system. This signal will help to build a profile of the devices involved and influence their risk score for future registration attempts or other activities.
+
+When submitting a failure event, it is valuable to include as much information as possible. But it is also more valuable to submit the event with incomplete information than not submit it at all.

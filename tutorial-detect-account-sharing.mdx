@@ -1,0 +1,44 @@
+---
+title: "Detect account sharing"
+---
+
+Account sharing, or credential sharing is when multiple individuals are using the same set of credentials to access your service. It is a common problem in particular for services that charges a fee per seat or per account, such as online streaming services or B2B software. For these services, account sharing leads to revenue loss, so it's important to stay on top of this and to put mechanisms in place to either prevent this entirely or inform the affected accounts about their abuse.
+
+In this guide we'll use the [Custom Signals](/docs/custom-signals) feature in Castle to set up a simple account sharing detector, for which you'll be able to tune the thresholds based on actual data.
+
+> 💡
+> 
+> Improving detection
+> 
+> The more events you track to Castle, the easier it becomes to detect account sharing, just because there is a higher likelihood of observing overlapping activity between devices. On the flip side, if you eg. only track login events, and have long lived sessions, it becomes hard to catch account sharing in the act.
+
+## Step 1\. Create Signals
+
+The expected behavior of accounts that are being shared is to see overlapping activity from multiple devices and potentially multiple locations, we'll create two Signals that will be used to capture this behavior
+
+1. Number of unique locations per user, within a one-hour interval. In this case we'll be using the number of unique cities as a representation for location, but you may also use region name or postal code.
+2. Number of unique device fingerprints per user, within a one-hour interval. Optionally, you can count unique devices of the same hardware type instead, to allow e.g. users using one mobile and one desktop device simultaneously.
+
+When you've created both of these Signals, you need to activate them by pressing the toggle button. 
+
+![Two Signals, used to capture account sharing](/images/818798e-bild.png)
+
+Two Signals, used to capture account sharing
+
+## Step 2\. Tune the thresholds
+
+Once the Signals has been created, you can use the Explore view to inspect the captured data. Depending on the usage pattern on your service, you may want to use different thresholds
+
+For the most aggressive detection, filter for events where `Device per User > 1 OR Locations per User > 1`. However, with this setting you may end up catching users switching from their mobile phone to their computer, or vice versa. If you'd switch the `OR` operator to an `AND` you'd allow this case, as long as the user is on the same Wi-Fi or connection.
+
+If your intention is to only catch severe account sharing, you may instead set a higher threshold for `Devices per User`, such as `> 3`
+
+![](/images/770f2b4-bild.png)
+
+## Step 3\. Create a policy to take action
+
+Once you've found a threshold that you're happy with, you can [create a policy](/docs/creating-a-policy) to enforce the kind of action you'd like to take against account-sharers. Just click the drop down in the top right corner of the Explore view, and the "Create a policy". Depending on your use-case you can for example:
+
+* Deny login requests when account sharing is detected, and pair this with automated messaging. For users that systematically abusing your service this might impose enough friction and annoyance, to make them reconsider purchasing separate seats.
+* Add the offending users to [a review list](/docs/lists#user-review-list) so that you can review these manually and reach out to the offenders
+* Add the offending users to [a review list](/docs/lists#user-review-list) and subscribe to the [List webhooks](/docs/subscribe-to-webhooks#list-events), to automatically notify and suspend the account, when multi accounting is detected.

@@ -1,0 +1,27 @@
+---
+title: "Detect impossible travel"
+---
+
+Impossible travel is the scenario where a user moves between two locations faster than possible by any means of travel. It is a simple form of anomaly detection and could be an indication that the account is compromised. There are a few other reasons why impossible travel can happen, including:
+
+* The user is using a proxy that is turned on or off between requests, causing a sudden jump in location. (However, the Castle signal "Impossible travel" will not trigger for the same device, which removes this behavior from being flagged)
+* A sign of phising or malware
+* Account sharing, i.e. two or more physical users are sharing the account
+
+Nevertheless, when impossible travel happens, it could be a sign of unwanted behavior that warrants additional attention. With Castle it's easy to spot impossible travel by using [signals](/docs/signals-reference#anomalous-behavior). 
+
+### Step 1\. Find users with impossible travel
+
+In the [Explore view](https://dashboard.castle.io/v2/events), you can filter out all events or users with impossible travel by adding a filter for the "Impossible Travel" signal. Optionally, you can add another filter for the "New Device" signal, to hone in on logins that are extra suspicious:
+
+### Step 2\. Create a policy to challenge impossible travel
+
+Follow the steps [how to create a policy](/docs/creating-a-policy#creating-a-policy) , and provide these options:
+
+* For name, use e.g. "Challenge impossible travel"
+* For event group, select "Login Succeeded"
+* For inline action, select "challenge"
+* For trigger condition, selects Signals and then "is one of Impossible travel, New device".
+* Verify the settings and hit "save"
+
+Finally, [enable and re-order](/docs/creating-a-policy#step-3-enable-and-reorder) the policy to put the new policy to work

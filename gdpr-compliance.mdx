@@ -1,0 +1,77 @@
+---
+title: "GDPR Compliance"
+---
+
+This guide is intended to help Castle Customers adhere to GDPR Compliance. The API endpoints described below specifically assist in supporting [Article 15: Right of access by the data subject](https://gdpr-info.eu/art-15-gdpr/) and [Article 17: Right to be forgotten](https://gdpr-info.eu/art-17-gdpr/).
+
+---
+
+### User data access requests
+
+GDPR introduced [Article 15: Right of access by the data subject](https://gdpr-info.eu/art-15-gdpr/). This states that users have the right to request access to the data held on them. If you receive this request from your user, you may also need to forward the request to your vendors, such as Castle, so that the vendor can provide data related to this user as well. Castle offers an API endpoint to submit these User Data Access Requests.
+
+#### Setting your privacy email address
+
+In the Castle Dashboard, you first need to enter your company’s privacy email address. This email address must then be verified. Once you have saved and verified an email address, Castle will send any data request results to that email address. To set your privacy email address, log into your Castle dashboard and visit **Settings > General**.
+
+![:warning:](/images/warning.png ":warning:") **Important:** This email address should only be accessible to employees that are responsible for handling user privacy related matters.
+
+![1634](/images/d6fcc14-Screenshot_2021-10-26_at_14.59.20.png "Screenshot 2021-10-26 at 14.59.20.png")
+
+Requests for user data will be processed and sent to the Privacy Email that you have set for that environment in the Castle Dashboard
+
+#### User data access request endpoint
+
+In order to submit a User Data Access Request, send a `POST` request without a body to the endpoint described below. You will need to authenticate the request with your Castle API Key.
+
+Upon receiving a request, Castle will compile records pertaining to the associated user. When the data compilation is completed, Castle will email your privacy email address on file. The email will contain a data download link that will expire after 48 hours.
+
+##### Sample request
+
+Shell
+
+`curl https://api.castle.io/v1/privacy/users/{user-id} \
+  -X POST \
+  -u ":YOUR-API-SECRET" \
+  -H "Content-Type: application/json"
+`
+
+##### Sample response
+
+HTTP
+
+`202
+`
+
+---
+
+### User data purge requests
+
+GDPR introduced [Article 17: Right to be forgotten](https://gdpr-info.eu/art-17-gdpr/). This states that users have the right to request that all the data held on them be permanently purged. If you receive this request from your user, you may also need to forward the request to your vendors, such as Castle, so that the vendor can purge that user’s data too. Castle offers an API endpoint to submit these User Data Purge Requests.
+
+#### User data purge endpoint
+
+In order to submit a User Data Purge Request, send a `DELETE` request without a body to the endpoint described below. You will need to authenticate the request with your Castle API Key.
+
+Upon receiving a request, Castle will permanently delete the user and their data from our systems. This will result in a permanent removal of all records associated to the user.
+
+> 📘
+> 
+> Please note that it may take up to 24h before the user data is fully purged
+
+##### Sample request
+
+Shell
+
+`curl https://api.castle.io/v1/privacy/users/{user-id} \
+  -X DELETE \
+  -u ":YOUR-API-SECRET" \
+  -H "Content-Type: application/json"
+`
+
+##### Sample response
+
+HTTP
+
+`202
+`

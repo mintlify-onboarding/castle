@@ -1,0 +1,187 @@
+---
+title: "Protecting custom actions"
+---
+
+> 🚧
+> 
+> Make sure you've first [integrated the client-side integration](/docs/a-full-integration#client-side-integration) in order to generate the "request tokens" required for each call to the Risk and Filter API.
+
+Often times you will have important user actions in your application that is outside of the scope of the standard Castle events. The [Risk API](https://reference.castle.io/#operation/risk) and [Filter API](https://reference.castle.io/#operation/filter) APIs both support sending `$custom` events with a mandatory `name` parameter.
+
+> 📘
+> 
+> Or implement it on the frontend
+> 
+> If you have many custom actions in your application that you want to monitor through Castle, but you don't require an inline response, it will likely be faster for you to roll them out using the [client SDKs](/docs/client-side).
+
+![:notebook-with-decorative-cover:](/images/notebook-with-decorative-cover.png ":notebook-with-decorative-cover:") You will need to generate and forward the `request_token` string from your frontend by using the [Browser SDK](/docs/sdk-browser) or a [Mobile SDK](/docs/sdk-mobile).
+
+RubyPHPPythonJavaNode
+
+`castle = ::Castle::Client.new
+
+begin
+  token = request.params['castle_request_token']
+  context = Castle::Context::Prepare.call(request)
+
+  res = castle.risk(
+    type: '$custom',
+    name: 'Added To Cart',
+    request_token: token,
+    context: {
+      ip: context[:ip],
+      headers: context[:headers]
+    },
+    user: {
+      id: 'ca1242f498', # Required. A unique, persistent user identifier
+      email: '[[email protected]](/cdn-cgi/l/email-protection)' # Recommended
+      # See the registration or login guides for more attributes
+    },
+    properties: {
+      item: 'iPhone 13',
+      price: 1499.0
+    }
+  )
+
+  if res[:policy][:action] == 'deny'
+    # IMPLEMENT: Deny attempt
+  end
+
+rescue Castle::InvalidRequestTokenError
+  # Deny attempt. Likely a bad actor bypassing fingerprinting
+rescue Castle::Error => e
+  # Allow attempt. Data missing or invalid, or a server or timeout error
+end
+`
+
+`// NOTE: See the Ruby example for a more comprehensive set of parameters
+
+try {
+  $token = $_POST['castle_request_token'];
+
+  $res = Castle::risk([
+    'type' => '$custom',
+    'name' => 'Added To Cart',
+    'request_token' => $token,
+    'context' => [
+      'ip' => Castle_RequestContext::extractIp(),
+      'headers' => Castle_RequestContext::extractHeaders()
+    ],
+    'user' => [
+      'id' => $user->id,
+      'email' => $user->email
+    ]
+  ]);
+
+  if ($res->risk > 0.9) {
+    // IMPLEMENT: Deny attempt
+  }
+
+} catch (Castle_InvalidRequestTokenError $e) {
+  // Deny attempt. Likely a bad actor bypassing fingerprinting
+} catch (Castle_Error $e) {
+  // Allow attempt. Data missing or invalid, or a server or timeout error
+}
+`
+
+`# NOTE: See the Ruby example for a more comprehensive set of parameters
+
+try:
+    token = request.form['castle_request_token'] # Using Flask
+    context = ContextPrepare.call(request)
+    client = Client()
+
+    res = client.risk({
+        'type': '$custom',
+        'name': 'Added To Cart',
+        'request_token': token,
+        'context': {
+          'ip': context['ip'],
+          'headers': context['headers']
+        },
+        'user': {
+            'id': user.id,
+            'email': user.email
+        }
+    })
+
+    if res['risk'] > 0.9:
+        # IMPLEMENT: Deny attempt
+
+except InvalidRequestTokenError:
+    # Deny attempt. Likely a bad actor bypassing fingerprinting
+except CastleError as e:
+    # Allow attempt. Data missing or invalid, or a server or timeout error
+`
+
+`// NOTE: See the Ruby example for a more comprehensive set of parameters
+
+String token = request.getParameter("castle_request_token");
+
+Castle castle = Castle.initialize();
+CastleContextBuilder context = castle.contextBuilder().fromHttpServletRequest(request)
+
+try {
+  CastleResponse response = castle.client().risk(ImmutableMap.builder()
+    .put("type", "$custom")
+    .put("name", "Added To Cart")
+    .put(Castle.KEY_CONTEXT, ImmutableMap.builder()
+      .put(Castle.KEY_IP, context.getIp())
+      .put(Castle.KEY_HEADERS, context.getHeaders())
+      build()
+    )
+    .put(Castle.KEY_USER, ImmutableMap.builder()
+      .put("id", user.getId())
+      .put("email", user.getEmail())
+      .build()
+    )
+    .put(Castle.KEY_REQUEST_TOKEN, token)
+    .build()
+  );
+  
+  float risk = response.json().getAsJsonObject().get("risk").getAsFloat();
+
+  if (risk > 0.9) {
+    // IMPLEMENT: Deny attempt
+  };
+  
+} catch (CastleApiInvalidRequestTokenException requestTokenException) {
+    // IMPLEMENT: Deny attempt. Likely a bad actor
+} catch (CastleRuntimeException runtimeException) {
+    // Data missing or invalid. Needs to be fixed
+}
+`
+
+`// NOTE: See the Ruby example for a more comprehensive set of parameters
+
+try {
+  const token = request.body["castle_request_token"]; // Using Express
+
+  const castle = new Castle({ apiSecret: 'YOUR SECRET HERE' });
+  const context = ContextPrepareService.call(request, {}, castle.configuration);
+
+  const res = castle.risk({
+    type: '$custom',
+    name: 'Added To Cart',
+    request_token: token,
+    user: {
+      id: user.id,
+      email: user.email
+    },
+    context: {
+      ip: context.ip,
+      headers: context.headers
+    }
+  });
+
+  if (res.risk > 0.9) {
+    // IMPLEMENT: Deny attempt
+  }
+} catch (e) {
+  if (e instanceof InvalidRequestTokenError) {
+     // IMPLEMENT: Deny attempt. Likely a bad actor
+  } else if (e instanceof APIError) {
+     // Allow attempt. Data missing or invalid, or a server or timeout error
+  }
+}
+`

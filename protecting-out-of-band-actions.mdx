@@ -1,0 +1,36 @@
+---
+title: "Protecting out-of-band actions"
+---
+
+This section covers how to use Castle in environments where actions are not initiated by the end user, or from clients where it's not possible to use Castle's client side SDK to generate a [Request Token](/docs/request-token). Examples of such environments could be
+
+* API clients, which typically only sends basic HTTP headers and with an IP that may or may not original from the end user's computer.
+* Webhook callbacks from e.g. payment providers, where it's not possible to run client side code or where the UserAgent and IP are not meaningful to track, since they aren't specific to the end user.
+
+The standard behavior of the [risk](https://reference.castle.io/#operation/risk) and [filter](https://reference.castle.io/#operation/filter) APIs is to reject any request that is missing either the `request_token` or `context` blocks. These parameters are used to pass the necessary information from rich clients, such as browsers or mobile apps. To accommodate for the aforementioned environments, where this isn't applicable, two parameters that can be sent in the request body, to inform Castle to bypass validation.
+
+| Parameter                        | Description                                                                                                                                                                    | Example                                                                                                       |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| skip\_request\_token\_validation | Default false. When set to true, you can track events from clients where it's not possible to use Castle's client side SDK to generate a [Request Token](/docs/request-token). | API Client or Command line interface                                                                          |
+| skip\_context\_validation        | Default false. When set to true, you can track events without the context parameter, i.e. without IP and/or HTTP headers such as the UserAgent.                                | Webhook callback, e.g. from payment provider, where the incoming IP and UserAgent typically aren't meaningful |
+
+Example API payload:
+
+`POST /v1/risk
+
+{
+  "type": "$custom",
+  "name": "Payment completed",
+  "user": {
+    "id": 1234
+  },
+  "skip_context_validation": true,
+  "skip_request_token_validation": true
+}
+`
+
+> ❗️
+> 
+> Risk scoring
+> 
+> Important to know is that Castle's [three risk scores](/docs/risk-scoring) currently require the `request_token` and `context` parameters to be present. This means that when any of these parameters are omitted, risk scores won't be available.

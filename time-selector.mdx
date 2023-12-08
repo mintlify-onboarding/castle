@@ -1,0 +1,44 @@
+---
+title: "Time selector"
+---
+
+The Castle Dashboard offers a flexible time selector that can be used to quickly select custom time ranges to drill down in your data. 
+
+Once you click the time selector, it will transform into a free form text input field where are able to enter any of the supported formats described below. You can also copy and paste time ranges into this field. Apart from typing the desired dates into the field, you may also choose from any of the quick options in the drop-down or pick a date range from the calendar widget.
+
+![](/images/bd558ad-2023-04-28_21.07.28.gif) 
+
+## Time Zone
+
+With the time selector you're able to change the displayed timezone, which will affect all timestamps showing event data. When clicking "Change time settings" you're able to select three different time zone settings
+
+* Default. The time zone configured by your organization in the [account settings](https://dashboard.castle.io/account/general).
+* Browser. The time zone as configured in your browser, which means that it'll follow whatever system settings you have on your device.
+* UTC. Display times in Universal Coordinated Time, which is the de facto choice when communicating time in situations where the recipient's time zone is not known, in order to avoid misunderstandings.
+![](/images/30cc95b-bild.png) 
+
+## Supported syntaxes
+
+### Fixed dates
+
+The input field accepts date ranges where the from and to dates need to be separated by a dash with whitespace on each side: `-`. Any of the date formats below can be combined. For example: `2022-10-10 - Oct 29 2022, 12:34 AM`
+
+You can also enter a single date, e.g. `2022-10-10`, which will be expanded to the full time range of that date
+
+| Format                      | Examples                     | Notes                                                         |
+| --------------------------- | ---------------------------- | ------------------------------------------------------------- |
+| {MMM/MMMM} D YYYY           | Oct 10 2022September 27 2022 |                                                               |
+| {MMM/MMMM} D, YYYY, h:mm a  | Oct 10, 12:34 AM             |                                                               |
+| YYYY-MM-DD                  | 2022-10-10                   |                                                               |
+| YYYY-MM-DD HH:mm:ss         | 2022-10-10 12:34             | Timestamp in local time. Seconds can be omitted               |
+| YYYY-MM-DDTHH:mm:ssZ        | 2022-10-10T12:34:56Z         | Timestamp in UTC. If Z is omitted, local time will be applied |
+| Unix seconds timestamp      | 1669811172                   |                                                               |
+| Unix milliseconds timestamp | 1669811172240                |                                                               |
+
+### Relative dates
+
+| Format    | Examples                                         | Description                                                                              |
+| --------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| {N}unit   | 2d, 10m                                          | Supported values for unit are:\- Minutes: m\- Hours: h\- Days: d\- Weeks: w\- Months: mo |
+| today     | Sets the time range to the full day of today     |                                                                                          |
+| yesterday | Sets the time range to the full day of yesterday |                                                                                          |

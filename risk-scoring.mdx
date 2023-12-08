@@ -1,0 +1,44 @@
+---
+title: "Risk scoring"
+description: "Machine learning-based risk scores designed to fraud and abuse"
+---
+
+Castle uses machine learning models to calculate risk scores as measures of how likely a user action will result in abuse. Scores are computed in real time from the data sent via the Risk and Filter APIs, as well as client-side events via the JavaScript, iOS, and Android SDKs.
+
+## The three risk scores
+
+Castle's APIs return a numerical risk score between 0.0 and 1.0, represented as 0–100 in the dashboard. Low-risk events are scored at or near zero, and high-risk events are scored at or near one.
+
+Castle calculates risk scores for three types of abuse, designed to cover most fraud and abuse problems when used in combination with business-specific policies:
+
+* **Account Abuse Score** \- a.k.a. the Castle Score, is the probability of a user trying to abuse your service, e.g. fake accounts, multi-accounting, account sharing, excessive. Will typically be implemented for the registration event, but can also be used for in-app events to prevent business logic or payment abuse.
+* **Account Takeover Score** \- the risk that an account is accessed through stolen credentials, e.g. through human account takeovers or automated credential stuffing attacks. Will typically be implemented for the login event, but can also be used at profile update or transactions to detect anomalous in-app behavior.
+* **Bot Score** \- a request performed by an automated script in order to spam or consume resources. Will typically be implemented _before_ the registration or login happens, or on public-facing forms. It can also be leveraged to protect critical resources inside your app.
+
+## How to get started with the risk scores
+
+The risk scores and APIs are flexible enough to be adapted to any use-case, but here's how the scores are commonly used in an initial integration meant to stop fraud and abuse even before they're able to get into your application:
+
+* If you have an **account registration problem**, call `/risk` on registration to start with, and you can later add other actions such as transactions or other business logic that are subject to fraud and abuse. _Deny requests with a Castle Score greater than 90_.
+* If you have an **account takeover problem,** call `/risk` on login, as well as other actions such as profile updates that are subject to fraud and abuse. _Deny requests with an Account Takeover Score > 90_.
+* If you have a **bot abuse problem**, call `/filter` on registration, login and other forms that are subject to bot spam and abuse. _Deny requests with a Bot Score greater than 90_.
+
+## How the scores work
+
+When producing this risk score, many properties are evaluated. These properties include:
+
+* Whether the event is pre- or post-authentication
+* Any history of the device performing the event
+* Suspicious behavior, such as high entropy in user or device traits
+* Historical statistics for the crowd of all of your users
+* The real-time IP, ISP, and email reputation
+
+Castle collects hundreds of features from the device and user interactions, and is able to reliably determine the kinds of devices, as well as individual pieces of hardware that users are using. Castle can tell when a device is trying to spoof its true platform or browser, or if the same device is being used to access many different accounts. See the chapter on [Device Fingerprinting](/docs/device-fingerprinting) for a more in-depth walk-through.
+
+Castle evaluates fingerprint characteristics for telltale signs of bots. The behaviors we look for include things like straight vector mouse movements, time patterns between interactions, and some other mechanisms that we like to keep as closely-held secrets. Read our [blog post on Bot Mouse Movement Detection](https://blog.castle.io/bot-or-not-can-you-spot-the-automated-mouse-movements/) to get an idea of what's implemented under the hood.
+
+Castle continuously learns what IPs, ISPs, and ASNs are legitimate and which ones can be expected to be the origin of abuse. This is done by monitoring locations around the world where legitimate users and devices typically interact, and compares new locations against "expected" locations where users travel, and factors the likelihood of the users being in that location when determining risk score.
+
+Based on the labels above _in combination with activity that we observe_, Castle maintains a concept of an IP and ISP reputation that changes over time. Since IP addresses get reassigned, these reputations are not static. IP and ISP reputations change in real time. Castle has seen more and more attacks originate from residential network ISP's, and we tune our product to block bad activity while still allowing "good" users to access their accounts.
+
+Lastly, Castle looks at a variety of behavioral traits of devices, ISP's, and individual IP traffic to determine suspicious circumstances. These traits include, among many others, the ratio of failed-to-successful events, as well as observations of multiple-account access attempts. As with our other models, we tune our product to be extremely fast in detecting suspicious behavior, and we label such behavior in real time.

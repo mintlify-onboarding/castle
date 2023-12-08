@@ -1,0 +1,218 @@
+---
+title: "Lists"
+---
+
+## Introduction
+
+Lists are a core concept in Castle that can be used for a variety of purposes, designed to streamline fraud-related workflows
+
+Lists have a couple of notable properties
+
+* A list describes a collection of entries of the same type, e.g. UserIDs, TransactionIDs, IPs or even your own custom attributes like, for instance, ProductID if you're a marketplace. When you create a new list in Castle you have to specify which type of items it should contain.
+* Lists can be assigned a color, to make it easier to organize the purpose of each list. For instance, you may want to assign ![:red-circle:](/images/red-circle.png ":red-circle:") red color to any list that is set up to block requests inline, based on if a list entry matches.
+* Lists can be hooked up to Policies to both control the returned action based on list presence, or automatically put items in lists based on trigger conditions.
+* Any item that gets added to a list has an author + optional comment field assigned to it, so you can confidently know who added the entry and why
+* Items in a list can have an expiration time, meaning that the item will automatically be removed from the list after this timestamp. This is useful, eg. for creating a dynamic IP block list that will ban each IP for, say, 24h.
+* **Advanced**: a list item can have a "secondary field", meaning that the item represents two values from different field types. The typical use-case for this is to approve a device ID for a specific user, so that when a list is evaluated for matching entries, both the user ID and device ID need to match.
+
+Use-cases for lists can be divided into two main categories:
+
+* Blocking or allowing matching entries. For instance, with Lists, you can easily create an IP block list and connect this to a policy to deny each request if the IP matches an entry in the list. In addition to adding IPs manually to this list, you can set up a policy to automatically add IPs when it matches.
+* Saving items of interest for later inspection or review. For instance, you can create a list called "Transactions for review" and then while you go through a series of transaction events in the Explore view, add the transaction IDs that you think warrant a deeper investigation to this list.
+
+## Managing lists and list items
+
+### Creating a new list
+
+> 📘
+> 
+> In order to create lists you need to have the admin role in the Castle Dashboard. The steps below are not applicable unless you have this role.
+
+From the [List management page](https://dashboard.castle.io/v2/lists), you can create a new list by clicking "Create List" in the upper right corner. You'll then be asked to provide details that outline your list configuration:
+
+![](/images/2662c74-castle-list-create.png) 
+
+| Field                 | Description                                                                                                                                                                                                                                                                                    |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Name                  | Required. A high level, descriptive name of your list, eg. Blocked IPs                                                                                                                                                                                                                         |
+| Color                 | Required. List color that will be displayed throughout the Dashboard UI. Colors are used as a way of organizing your lists, eg. by assigning red color to blocking lists, green to trusted items, and so forth.                                                                                |
+| Description           | Optional. Detailed description of the purpose of this list                                                                                                                                                                                                                                     |
+| Primary Entity        | Required. Selects the entity of which the list items will represent. Eg. Users, IPs or Devices.                                                                                                                                                                                                |
+| Secondary Entity      | Optional. Selects a secondary entity. This is especially useful in situations where you need to trust or block a particular device, but only for a specific user.                                                                                                                              |
+| Auto-archivation time | Optional. Default time, in minutes, after which Items in this List automatically gets archived after they are created. It is possible to override this value when creating the individual List Items. If no time is provided, the entries in the list will stay there until archived manually. |
+
+> ❗
+> 
+> Once a list has been created it is not possible to change the `primary` or `secondary` field.
+
+### Connecting a list to a policy
+
+By default, when you create a list, it'll only serve as a collection of items for organizational purposes. If you wish to take action based on the content of the list, eg. if you'd like to create an IP block list where events with matching IPs will automatically be denied, you need to set up a Policy to check the list and conditionally return the correct response. 
+
+1. First, go ahead and [create a new list](https://dashboard.castle.io/v2/lists), eg. "Blocked IPs" using IP as the primary entity
+2. Next, head over to the [Policies page](https://dashboard.castle.io/policies/list) and create a new Policy
+3. When configuring the new Policy, select "List-based" and check the list you'd like to connect (In this case, the policy is connected to "Blocked IPs").
+
+![List-based policies determines the returned action based on matching entries in a List](/images/8165390-castle-policy-list-based.png)
+
+List-based policies determines the returned action based on matching entries in a List
+
+1. Scroll down and select the desired inline action, eg. "Deny" in case of an IP block list and "Allow" in case of a list of trusted Users
+2. Once the policy is saved and activated, any events which contains data that matches the list content will cause the desired action to be returned by the Castle APIs
+
+> 📘
+> 
+> Policy order
+> 
+> As policies are evaluated from top to bottom, make sure to put the policy in the proper order for it to have the desired effect. For example, if you create an IP block list, this should be put at the top to make sure matching IPs are always blocked
+
+### Creating list items automatically based on a policy
+
+Policies can be configured to automatically create list items whenever they match. This is especially useful if you'd like to e.g. automatically put users in a review list based on a criterion, or automatically block IPs that exhibits abusive behavior.
+
+To automatically create a list item based on a policy, make sure to [first create the list](https://dashboard.castle.io/v2/lists) you'd like the policy to add to. Then, [head over to the policies page](https://dashboard.castle.io/policies/list) and create a new policy that defines the criteria you're after (e.g. bot score over 90). At the bottom of the policy configuration screen, you'll find a section called "Actions", where you'll be able to specify which lists to add items to when the policy triggers.
+
+![](/images/8d6f9b0-bild.png) 
+
+> 💡
+> 
+> Auto-archive refresh
+> 
+> If the List that your Policy adds items to has a automatic archivation time configured, this time will be reset each time the policy matches, meaning that the item will expire from the list after the configured auto-archivation time, **from the last time the policy matched**
+
+### Adding items to lists
+
+Once you've created a list, you can manually add items to it in three ways
+
+1. Manually, via the list management page by clicking "Add to list".
+![](/images/b734125-bild.png) 
+1. From the Explore view. When navigated to a group-tab that corresponds to the List entity, you can add items by clicking the checkboxes to the left and then "Add to List". Eg. from a "Users" group tab, items can be added to a list with "User ID" as primary entity.
+![](/images/fe91462-castle-add-users.png) 
+1. From the User profile view. Users and Devices can be added to corresponding lists from the User Profile view either by clicking on the "plus" sign in the top right corner, or by clicking on the corresponding device in the list to the right
+![](/images/f49cab3-castle-add-from-up.png) 
+
+## API and Webhooks
+
+All available actions are fully accessible via API, meaning that you're not limited to interacting with lists and list items via the Castle Dashboard, but can set up custom workflows directly from your own apps. Se the [API reference](https://reference.castle.io/#tag/lists) for details.
+
+By using the API together with [webhooks](/docs/subscribe-to-webhooks), you're able to create a bi-directional sync to keep your app up to date, no matter where the List changes happens. Just subscribe to the relevant [List events](/docs/subscribe-to-webhooks#list-events) when setting up your webhook.
+
+##### Example API call to add an item to a list
+
+cURL
+
+`curl --location --request POST 'https://api.castle.io/v1/lists/{list_id}/items' \
+--header 'Authorization: Basic <secret>' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "primary_value": "1.1.1.1",
+    "author": {
+        "type": "$user_email", 
+        "identifier": "[[email protected]](/cdn-cgi/l/email-protection)"
+    }
+}'
+`
+
+##### Example webhook response when a list item is archived
+
+JSON
+
+`{
+  "api_version": "v1",
+  "app_id": "967132239648643",
+  "created_at": "2022-09-28T09:34:42.451Z",
+  "type": "$list_item.archived",
+  "data": {
+    "id": "c485c3cf-a1c6-48db-903a-1b694c9c541d",
+    "primary_value": "42138",
+    "secondary_value": null,
+    "auto_archives_at": "2022-09-28T09:34:42.443Z",
+    "author": {
+      "type": "$castle_dashboard_user",
+      "identifier": "a700fcff-e4ee-48bc-8db8-8f2ec386d0c7",
+      "details": {}
+    },
+    "comment": "Fraud!",
+    "list": {
+      "id": "96e5ed62-7774-4cd3-bfe6-c70921d47c50",
+      "name": "Blocked users",
+      "primary_field": "user.id",
+      "secondary_field": null
+    }
+  }
+}
+`
+
+## List tutorials
+
+### Basic block/trust list
+
+A very common use-case for lists is to either block or allow entities like an ISP, a UserAgent string or an IP address. In this example, we'll be creating a list for blocking specific ISPs permanently.
+
+1. Open the dialog for [creating a new list](/docs/lists#creating-a-new-list)
+2. Pick a name and color for your list and select "ISP" as "Primary field"
+3. Hit save. Now, a new list should show up in the side navigation menu, where you can start adding items.
+4. In order tell Castle to return a `deny` action whenever the ISP for the incoming event is found in your new list, head over to the Policies page to create a new List-based policy. Select/check your new list in the "Lists" section, and then "Deny" as response in the "Actions" section at the bottom.
+5. Hit save
+6. Click "enable re-ordering" and make sure the new policy is at the top of the list of other policy. This will ensure that the ISPs in the list are block regardless of other rules in place.
+7. Finally, activate the policy but clicking the toggle button on the right.
+
+### Trusted Devices
+
+When using Castle to protect users from account takeovers, it is best practice to challenge the user, e.g. via e-mail, when a suspicious login is detected by Castle. When the user then completes the challenge, you could add the particular device to a list of trusted user devices, in order to reduce further and improve the user experience. 
+
+1. By default, Castle comes with a list called "Trusted user devices". If it's still there, you may skip to step 3). If not, open the dialog for [creating a new list](/docs/lists#creating-a-new-list)
+2. First, pick a name and color for your list. Next, in this case we'll use both primary and secondary field as we'd only like to trust the device for a specific user, and not globally. Select "Device Fingerprint" as "Primary field" and "User ID" as "Secondary field"
+3. We'd like to approve devices for 30 days only, before requiring re-approve. In the field "Default list item auto-archivation time", put the value 43200 (minutes).
+
+![Using both primary and secondary field to target devices per individual user](/images/fbe4690-bild.png)
+
+Using both primary and secondary field to target devices per individual user
+
+1. Hit save.
+2. Follow the steps for [connecting a list to a policy](/docs/lists#connecting-a-list-to-a-policy) above. Pick your newly created list and select "Allow" as the action.
+3. Before activating the policy, make sure it's ordered correctly. For example, if you'd like to unconditionally allow a user device, put it at the very top over the rest of the policies.
+
+### User review list
+
+In this example, we'll use lists to set up a simple review flow, where suspicious users are first put in a review list based on their transactions. Then, as an analyst reviews the user, he or she will move the User from the review list to either the trusted users lists, or the blocked users list, depending on the decision.
+
+In this example we'd like to add a condition, so that any transaction with an amount over $500 and a Abuse Risk Score over 90 automatically triggers a manual review of the user
+
+**Step 1.** First, we need to create a Segment that detects transactions over $500\. 
+
+1. Go to the [Segments tab](https://dashboard.castle.io/policies/segments) under Policies
+2. Click "Add new filter" followed by "Event Traits" and then "Transaction Amount Value"
+3. Select "greater than", enter 500 and hit Ok.
+4. Lastly, save the new segment, eg. with the name "High value transactions". When you're done it should look like this:
+
+![A segment that detects transactions with amounts over $500](/images/0feccb3-bild.png)
+
+A segment that detects transactions with amounts over $500
+
+**Step 2.** Next, we'll create the new list and policy which will automatically add items to it.
+
+1. Follow the steps for [creating a new list](/docs/lists#creating-a-new-list). For name, type "Users in review" and then select "User ID" as "Primary field". Leave the other fields with their default value.
+2. Hit save
+3. Follow the steps for [automatically adding list items based on policy rules](/docs/lists#creating-list-items-automatically-based-on-a-policy). For policy event name, you should select the appropriate action for your business, e.g. `$transaction.succeeded`. For trigger, we'll select the "High value transactions" segment you just created, as well as "Account Abuse Score > 90". Now the policy will trigger when both of these conditions occur.
+4. Hit save and activate the policy. Also, make sure it's in the correct order
+
+**Step 3\.** Now, users will start to pop in this list as suspicious transactions are happening. A daily review flow will look something like this:
+
+1. Click the "Users in review" list
+2. Click the first user in the list to navigate to the profile view
+3. In the top right corner, click the list name and then "remove from list"
+4. Review the user activity and then, based on your decision, put the user in the "trusted users" list or the "blocked users" list by pressing the plus-sign in the top right corner. Make sure to enter a comment to inform your team-mates about the basis for your decision!
+5. Head back to the "Users in review" list, and repeat
+
+### Automatically ban malicious IPs
+
+In this section, we'll set up a policy to automatically add IPs to a block list whenever the Castle Account Abuse score is above 90 or if the request is coming from a headless browser
+
+1. Create a new list "Banned IPs" by [following the steps for creating a new list](/docs/lists#creating-a-new-list). Pick "IP" as "primary field"
+2. For "default list item auto-archivation time", you may pick a time period of e.g. 30 days to clean up the list automatically if the IP isn't returning. Note that the policy with renew this archivation time every time that the IP is coming back.
+3. Hit save
+4. Follow the steps for [automatically adding items to a list based on a policy](/docs/lists#creating-list-items-automatically-based-on-a-policy). As trigger condition select "Account Abuse score > 90", and then in the "Signals" section, click "Headless browser". Lastly, make sure to select the option "Selected Risk Score setting OR selected Risk Signals setting" for triggering the policy.
+5. Save and activate the policy
+6. Create another policy for deny requests based on the "Banned IPs" list by [following the steps for connecting a list to a policy](/docs/lists#connecting-a-list-to-a-policy)
+7. Save and activate the new List-based policy

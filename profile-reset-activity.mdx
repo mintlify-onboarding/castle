@@ -1,0 +1,403 @@
+---
+title: "Protecting the password reset"
+---
+
+> 🚧
+> 
+> Make sure you've first [integrated the client-side integration](/docs/a-full-integration#client-side-integration) in order to generate the "request tokens" required for each call to the Risk and Filter API.
+
+Send `$password_reset_request` activity to track attempts to reset a user password, which can be an early signal of an account takeover. With an [incorrectly implemented password reset](https://cheatsheetseries.owasp.org/cheatsheets/Forgot%5FPassword%5FCheat%5FSheet.html) flow, the attacker can run a user enumeration attack, which can be used to increase the success rate of an account takeover attack. By sending the below events to Castle, you can catch and mitigate fraud at an early stage. The Filter API returns a Castle risk assessment, which can be used to allow or deny the password reset request.
+
+Once the user received the instructions on how to reset the password, typically an email or text message with a reset link, send the `$profile_reset` event to the Risk API to mark the completion of the reset flow. Note this event is named `profile`, not `password`, since it allows you to also track accounts that other types of resets such as their phone number or authentication method reset.
+
+### Step 1\. _Requesting_ the password reset
+
+The `$password_reset_request` activity can be sent at different stages of the reset request flow, which is denoted by setting the `status` field:
+
+* `$attempted` – The form was posted but hasn't yet been validated by your backend. Useful when you want to use the Castle response to verify the request before the request email goes out to the account holder
+* `$succeeded` – The password reset link was sent to the user
+* `$failed` – A user matching the request form field doesn't exist
+
+RubyPHPPythonJavaNode
+
+`castle = ::Castle::Client.new
+
+begin
+  token = request.params['castle_request_token']
+  context = Castle::Context::Prepare.call(request)
+
+  res = castle.filter(
+    type: '$password_reset_request',
+    status: '$attempted',
+    request_token: token,
+    context: {
+      ip: context[:ip],
+      headers: context[:headers]
+    },
+    matching_user_id: 'ca1242f498', # Optional
+    params: {
+      email: request.params['email']
+    }
+  )
+
+  if res[:policy][:action] == 'deny'
+    # IMPLEMENT: Deny attempt
+  end
+
+rescue Castle::InvalidRequestTokenError
+  # Deny attempt. Likely a bad actor bypassing fingerprinting
+rescue Castle::Error => e
+  # Allow attempt. Data missing or invalid, or a server or timeout error
+end
+`
+
+`try {
+  $token = $_POST['castle_request_token'];
+
+  $res = Castle::filter([
+    'type' => '$password_reset_request',
+    'status' => '$attempted',
+    'request_token' => $token,
+    'context' => [
+      'ip' => Castle_RequestContext::extractIp(),
+      'headers' => Castle_RequestContext::extractHeaders()
+    ],
+    'matching_user_id' => 'ca1242f498', // Optional
+    'params' => [
+      'email' => $_POST['email']
+    ]
+  ]);
+
+  if ($res->risk > 0.9) {
+    // IMPLEMENT: Deny attempt
+  }
+
+} catch (Castle_InvalidRequestTokenError $e) {
+  // Deny attempt. Likely a bad actor bypassing fingerprinting
+} catch (Castle_Error $e) {
+  // Allow attempt. Data missing or invalid, or a server or timeout error
+}
+`
+
+`try:
+    token = request.form['castle_request_token'] # Using Flask
+    context = ContextPrepare.call(request)
+
+    client = Client()
+
+    res = client.filter({
+        'type': '$password_reset_request',
+        'status': '$attempted',
+        'request_token': token,
+        'context': {
+          'ip': context['ip'],
+          'headers': context['headers']
+        },
+        'matching_user_id': 'ca1242f498', # Optional
+        'params': {
+          'email': request.form['email']
+        }
+    })
+
+    if res['risk'] > 0.9:
+        # IMPLEMENT: Deny attempt
+
+except InvalidRequestTokenError:
+    # Deny attempt. Likely a bad actor bypassing fingerprinting
+except CastleError as e:
+    # Allow attempt. Data missing or invalid, or a server or timeout error
+`
+
+`String token = request.getParameter("castle_request_token");
+
+Castle castle = Castle.initialize();
+CastleContextBuilder context = castle.contextBuilder().fromHttpServletRequest(request)
+
+try {
+  CastleResponse response = castle.client().filter(ImmutableMap.builder()
+    .put("type", "$password_reset_request")
+    .put("status", "$attempted")
+    .put(Castle.KEY_CONTEXT, ImmutableMap.builder()
+      .put(Castle.KEY_IP, context.getIp())
+      .put(Castle.KEY_HEADERS, context.getHeaders())
+      build()
+    )
+    .put(Castle.KEY_REQUEST_TOKEN, token)
+    .put("matching_user_id", "ca1242f498") // Optional
+    .put("params", ImmutableMap.builder()
+      .put("email", request.getParameter("email"))
+      .build()
+    .build()
+  );
+  
+  float risk = response.json().getAsJsonObject().get("risk").getAsFloat();
+
+  if (risk > 0.9) {
+    // IMPLEMENT: Deny attempt
+  };
+  
+} catch (CastleApiInvalidRequestTokenException requestTokenException) {
+    // IMPLEMENT: Deny attempt. Likely a bad actor
+} catch (CastleRuntimeException runtimeException) {
+    // Data missing or invalid. Needs to be fixed
+}
+`
+
+`try {
+  var token = request.body["castle_request_token"]; // Using Express
+
+  const castle = new Castle({ apiSecret: 'YOUR SECRET HERE' });
+  const context = ContextPrepareService.call(request, {}, castle.configuration);
+
+  const res = castle.filter({
+    type: '$password_reset_request',
+    status: '$attempted',
+    request_token: token,
+    context: {
+      ip: context.ip,
+      headers: context.headers
+    },
+    matching_user_id: 'ca1242f498', // Optional
+    params: {
+      email: request.body["email"]
+    },
+  });
+
+  if (res.risk > 0.9) {
+    // IMPLEMENT: Deny attempt
+  }
+} catch (e) {
+  if (e instanceof InvalidRequestTokenError) {
+     // IMPLEMENT: Deny attempt. Likely a bad actor
+  } else if (e instanceof APIError) {
+     // Allow attempt. Data missing or invalid, or a server or timeout error
+  }
+}
+`
+
+### Step 2\. _Completing_ the password reset
+
+The `$profile_reset` activity can be sent at different stages of the reset completion flow, which is denoted by setting the `status` field:
+
+* `$attempted` – The form was posted but hasn't yet been validated by your backend. Useful when you want to use the Castle response to verify the user before the profile reset is completed
+* `$succeeded` – The user profile was reset
+* `$failed` – The user profile was not reset, likely because of validation errors
+
+RubyPHPPythonJavaNode
+
+`castle = ::Castle::Client.new
+
+begin
+  token = request.params['castle_request_token']
+  context = Castle::Context::Prepare.call(request)
+
+  res = castle.risk(
+    type: '$profile_reset',
+    status: '$succeeded',
+    request_token: token,
+    context: {
+      ip: context[:ip],
+      headers: context[:headers]
+    },
+    user: {
+      id: 'ca1242f498', # Required. A unique, persistent user identifier
+      email: '[[email protected]](/cdn-cgi/l/email-protection)' # Recommended
+    },
+    changeset: {
+      password: { changed: true }
+    }
+  )
+
+  if res[:policy][:action] == 'deny'
+    # IMPLEMENT: Deny attempt
+  end
+
+rescue Castle::InvalidRequestTokenError
+  # Deny attempt. Likely a bad actor bypassing fingerprinting
+rescue Castle::InvalidParametersError
+  # Allow attempt. Data missing or invalid. Needs to be fixed
+rescue Castle::Error => e
+  # Allow attempt. Likely a server or timeout error
+end
+`
+
+`// NOTE: See the Ruby example for a more comprehensive set of parameters
+
+try {
+  $token = $_POST['castle_request_token'];
+
+  $res = Castle::risk([
+    'type' => '$profile_reset',
+    'status' => '$succeeded',
+    'request_token' => $token,
+    'context' => [
+      'ip' => Castle_RequestContext::extractIp(),
+      'headers' => Castle_RequestContext::extractHeaders()
+    ],
+    'user' => [
+      'id' => $user->id,
+      'email' => $user->email
+    ],
+    'changeset' => [
+      'password' => true
+    ]
+  ]);
+
+  if ($res->risk > 0.9) {
+    // IMPLEMENT: Deny attempt
+  }
+
+} catch (Castle_InvalidRequestTokenError $e) {
+  // Deny attempt. Likely a bad actor bypassing fingerprinting
+} catch (Castle_InvalidParametersError $e) {
+  // Allow attempt. Data missing or invalid. Needs to be fixed
+} catch (Castle_Error $e) {
+  // Allow attempt. Likely a server or timeout error
+}
+`
+
+`# NOTE: See the Ruby example for a more comprehensive set of parameters
+
+try:
+    token = request.form['castle_request_token'] # Using Flask
+    context = ContextPrepare.call(request)
+    client = Client()
+
+    res = client.risk({
+        'type': '$profile_reset',
+        'status': '$succeeded',
+        'request_token': token,
+        'context': {
+          'ip': context['ip'],
+          'headers': context['headers']
+        },
+        'user': {
+          'id': user.id,
+          'email': user.email
+        },
+				'changeset': {
+		      'password': { 'changed': True }
+		    }
+    })
+
+    if res['risk'] > 0.9:
+        # IMPLEMENT: Deny attempt
+
+except InvalidRequestTokenError:
+    # Deny attempt. Likely a bad actor bypassing fingerprinting
+except InvalidParametersError:
+    # Allow attempt. Data missing or invalid. Needs to be fixed
+except CastleError as e:
+    # Allow attempt. Likely a server or timeout error
+`
+
+`// NOTE: See the Ruby example for a more comprehensive set of parameters
+
+String token = request.getParameter("castle_request_token");
+
+Castle castle = Castle.initialize();
+CastleContextBuilder context = castle.contextBuilder().fromHttpServletRequest(request)
+
+try {
+  CastleResponse response = castle.client().risk(ImmutableMap.builder()
+    .put("type", "$profile_reset")
+    .put("status", "$succeeded")
+    .put(Castle.KEY_CONTEXT, ImmutableMap.builder()
+      .put(Castle.KEY_IP, context.getIp())
+      .put(Castle.KEY_HEADERS, context.getHeaders())
+      build()
+    )
+    .put(Castle.KEY_USER, ImmutableMap.builder()
+      .put("id", user.getId())
+      .put("email", user.getEmail())
+      .build()
+    )
+    .put("changeset", ImmutableMap.builder()
+      .put("password", true)
+      .build()
+    )
+    .put(Castle.KEY_REQUEST_TOKEN, token)
+    .build()
+  );
+  
+  float risk = response.json().getAsJsonObject().get("risk").getAsFloat();
+
+  if (risk > 0.9) {
+    // IMPLEMENT: Deny attempt
+  };
+  
+} catch (CastleApiInvalidRequestTokenException requestTokenException) {
+    // IMPLEMENT: Deny attempt. Likely a bad actor
+} catch (CastleRuntimeException runtimeException) {
+    // Data missing or invalid. Needs to be fixed
+}
+`
+
+`// NOTE: See the Ruby example for a more comprehensive set of parameters
+
+try {
+  const token = request.body["castle_request_token"]; // Using Express
+
+  const castle = new Castle({ apiSecret: 'YOUR SECRET HERE' });
+  const context = ContextPrepareService.call(request, {}, castle.configuration);
+
+  const res = castle.risk({
+    type: '$profile_reset',
+    status: '$succeeded',
+    request_token: token,
+    user: {
+      id: user.id,
+      email: user.email
+    },
+    context: {
+      ip: context.ip,
+      headers: context.headers
+    },
+    changeset: {
+      password: { changed: true }
+    }
+  });
+
+  if (res.risk > 0.9) {
+    // IMPLEMENT: Deny attempt
+  }
+} catch (e) {
+  if (e instanceof InvalidRequestTokenError) {
+     // IMPLEMENT: Deny attempt. Likely a bad actor
+  } else if (e instanceof InvalidParametersError) {
+     // Data missing or invalid. Needs to be fixed
+  }
+}
+`
+
+#### The `changeset` object
+
+The optional `changeset` object lets you specify which attributes were changed in the profile reset process.
+
+JSON
+
+`changeset: {
+  password: { changed: true },
+  email: {
+    from: '[[email protected]](/cdn-cgi/l/email-protection)',
+    to: '[[email protected]](/cdn-cgi/l/email-protection)'
+  },
+  'authentication_method.type': {
+    from: null,
+    to: '$authenticator'
+  },
+  custom_property: {
+    # ...
+  }
+}
+`
+
+For security reasons, the `password` field only accepts the `changed: true` value, whereas `email`, `phone`, `name`, and `authentication_method.type` accepts an object with `from` and `to` values.
+
+Setting `from` to `null` means that the value was previously not set, and `to` to `null` means that the field was unset, for example in the case of `authentication_method.type` it could mean that a 2FA method was disabled.
+
+In addition to the standard attributes, you can add any number of custom values, and they will all appear in the dashboard, however they will not be filterable like the standard attributes.
+
+#### Taking action
+
+The response from the API call to Risk can then be used to take different actions. Typically, for profile updates, you'd want to ask the user to either re-authenticate using their password, or preferably by stepping up the authentication to a stronger factor.

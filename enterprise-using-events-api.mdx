@@ -1,0 +1,462 @@
+---
+title: "Events API"
+---
+
+> 📘
+> 
+> Events API is currently in beta and available to enterprise customers on demand. Castle might introduce breaking changes before the API becomes publicly available.
+
+### Introduction
+
+Castle's Events API is what powers the Castle Dashboard, and allows you to query all data sent to any of the Castle's Risk, Filter or APIs. 
+
+The Events API consists of three endpoints:
+
+1. `GET /v1/events/schema` \- Provides human-readable descriptions and available operations for each of the 150+ fields available in the Events API.
+2. `POST /v1/events/query` \- Query raw event data, i.e. individual event records are returned.
+3. `POST /v1/events/group` \- Query aggregated data. Think of this endpoint as an equivalent of a `GROUP BY` clause in SQL.
+
+#### Authentication
+
+Please refer to our [API spec](https://reference.castle.io/#section/Authentication).
+
+#### Rate-Limiting
+
+The Query and Group API are rate-limited to 5 concurrent executions at a time. This means that if you send 5 requests to these APIs and Castle is still processing them, a sixth request will be rejected and an HTTP 429 response will be returned. In this case, you should either:
+
+1. If you run requests from the same process, wait for one of them to finish
+2. Retry your request using an [Exponential Backoff Algorithm](https://docs.aws.amazon.com/general/latest/gr/api-retries.html)
+
+### Concepts
+
+The Events API is very flexible when it comes to the types of queries you can run and in order to utilize it fully, there are a few concepts that are important to understand.
+
+#### Filters
+
+A Filter defines what conditions should the resulting data meet by applying an operation on a given field. This is similar to the `WHERE` clause in a SQL statement.
+
+An example filter that would return data only for a user with an ID 5738495 might look like this: 
+
+JSON
+
+`{"field": "user.id", "op": "$eq", "value": "5738495"}
+`
+
+You specify multiple filters in the request payload as an array under the `filters` field:
+
+JSON
+
+`{
+  "filters": [{"field": "user.id", "op": "$eq", "value": "5738495"}]
+}
+`
+
+Multiple filters are joined with the `AND` logical operator, unless you specify an [OR Filter](/docs/enterprise-using-events-api#or-filter).
+
+Most operations define a negated operation. For example, in order to test inequality, you would use the `$neq` operation.
+
+In your queries, you'd always want to define a time range filter using the `$range` operation:
+
+JSON
+
+`{
+  "field": "created_at",
+  "op": "$range",
+  "value": {
+    "lteq": "2022-12-02 15:04:57",
+    "gteq": "2022-12-02 00:04:58"
+  }
+}
+`
+
+You can also use `lt` and `gt` for strong inequality comparison.
+
+Below are the most common operations, along with their negated counterparts:
+
+| operation                     | description                                        | notes                         |
+| ----------------------------- | -------------------------------------------------- | ----------------------------- |
+| $eq, $neq                     | Checks for equality                                |                               |
+| $in, $nin                     | Checks whether a value matches a collection        | value must be an array        |
+| $exists, $nexists             | Checks whether a value is non-null                 | value should be skipped       |
+| $contains, $ncontains         | Checks whether a string contains a substring       | Only works on the string type |
+| $starts\_with, $nstarts\_with | Checks whether a string starts with a given string | Only works on the string type |
+| $ends\_with, $nends\_with     | Checks whether a string ends with a given string   | Only works on the string type |
+
+Not all operations can be applied to every single field. You can call the [Schema API](https://reference.castle.io/#operation/getEventSchema) to inspect allowed operations for every field.
+
+##### OR Filter
+
+The OR Filter is a special kind of filter that lets you join your filters using the logical or operator. 
+
+You can use the OR Filter by using the `$or` operation and nesting filters in the `value` field. For example, let's say that you want to write the following query: `user.id:"5505" AND (ip.privacy.datacenter:true AND "bot_behavior" in signals) OR (type:"$login" AND "rooted_device" in signals)`
+
+It would translate to the following filters:
+
+JSON
+
+`[
+  {
+    "field": "user.id",
+    "op": "$eq",
+    "value": "5505"
+  },
+  { 
+    "op": "$or",
+    "value": [
+      {
+        "field": "ip.privacy.datacenter",
+  			"op": "$eq",
+     		"value": true
+      },
+      {
+      	"field": "signals",
+        "op": "$in",
+        "value": ["bot_behavior"]
+      }
+    ]
+  },
+    { 
+    "op": "$or",
+    "value": [
+      {
+        "field": "type",
+  			"op": "$eq",
+     		"value": "$login"
+      },
+      {
+      	"field": "signals",
+        "op": "$in",
+        "value": ["rooted_device"]
+      }
+    ]
+  } 
+]
+`
+
+Note that filters nested inside an OR Filter are ANDed together and multiple OR filters are then OR-ed, which might be counterintuitive.
+
+Also, please note the following constraints:
+
+1. There is no separate `$and` filter - AND is the default logical operator
+2. You cannot nest an OR Filter inside an OR Filter.
+
+Because of these constraints, you cannot define a query that ANDs multiple OR groups: `(a OR b) AND (c OR d)`. However, you are still able to define an equivalent query by transforming the statement using [De Morgan's Laws](https://en.wikipedia.org/wiki/De%5FMorgan%27s%5Flaws). The following statement is equivalent to the previous one: `(a AND c) OR (a AND d) OR (b AND c) OR (b AND d)` and it can be constructed with the OR Filter.
+
+#### Columns and Functions
+
+In the [Group API](/docs/enterprise-using-events-api#group-api) you have to specify which `columns` you want to query for. Since the Group API computes aggregates, a function has to be defined on each column. 
+
+Let's say you want to compute top 20 signals per `user.id`, sorted by the number of distinct signals. This is how you would write a query to the Group API:
+
+JSON
+
+`{
+  "filters": [],
+  "columns": [
+    {
+      "func": "$last",
+      "name": "id",
+      "field": "user.id"
+    },
+    {
+      "func": "$top_k",
+      "name": "Top 20 Signals",
+      "field": "signals",
+      "options": {
+        "size": 20
+      }
+    }
+  ],
+  "page": 1,
+  "results_size": 1000,
+  "group_by": {
+    "fields": [
+      {
+        "field": "user.id"
+      }
+    ]
+  },
+  "sort": {
+    "field": "signals",
+    "func": "$count",
+    "options": {
+      "distinct": true
+    },
+    "order": "desc"
+  }
+}
+`
+
+As you can see, each column has the following attributes:
+
+* **field** \- a specific Event field name
+* **name** \- a human-readable name that will be returned by the API
+* **func** \- a function that is applied to the field
+* **options** \- additional parameters for the function, if required
+
+You can also specify a column with a function in the `sort` part of the query.
+
+Below are the functions supported by the Group API:
+
+| Function | Description                                                     | Options                |
+| -------- | --------------------------------------------------------------- | ---------------------- |
+| $sum     | Computes a sum of an aggregated field                           |                        |
+| $avg     | Computes an average of an aggregated field                      |                        |
+| $min     | Computes a minimum value of an aggregated field                 |                        |
+| $max     | Computes a maximum value of an aggregated field                 |                        |
+| $count   | Computes the number of (distinct) values of an aggregated field | distinct: true / false |
+| $top\_k  | Computes top K most common values of an aggregated field        | size: integer          |
+| $last    | Computes the last value of an aggregated field                  |                        |
+
+Not all functions can be applied to every single field. You can call the [Schema API](https://reference.castle.io/#operation/getEventSchema) to inspect allowed functions for every field.
+
+### Schema API
+
+**Path**: `GET https://beta.castle.io/v1/events/schema`
+
+The Schema API provides an array of field objects, each of which includes the field name, a description of the field, and a list of operations and functions that can be applied to the field. Developers can use this information to understand the data that is available through the Events API and to build appropriate queries in the Query and Group APIs.
+
+#### Examples
+
+Bash
+
+`// curl -XGET -s 'https://beta.castle.io/v1/events/schema' -u ":YOUR_API_KEY" | jq ".fields[] | select(.field == \"type\")"
+{
+  "field": "type",
+  "type": {
+    "type": "string"
+  },
+  "op": [
+    "$in",
+    "$eq",
+    "$nin",
+    "$neq"
+  ],
+  "func": [
+    "$first",
+    "$last",
+    "$top_k",
+    "$count"
+  ],
+  "enum": [
+    "$login",
+    "$profile_update",
+    "$profile_reset",
+    "$registration",
+    "$challenge",
+    "$logout",
+    "$transaction",
+    "$password_reset_request",
+    "$page",
+    "$screen",
+    "$form",
+    "$custom"
+  ],
+  "nice_name": "Event Type",
+  "description": "One of Castle's standard event types, prefixed with the $-character.",
+  "example": "$login"
+}
+`
+
+### Query API
+
+**Path:** `POST https://beta.castle.io/v1/events/query`
+
+The Query API lets you query for raw Event data. For the full API specification of this API, please refer to our [API spec](https://reference.castle.io/#operation/queryEvents). 
+
+The request body should include a JSON object that specifies the query parameters. The response to this request will be a JSON object containing:
+
+* `data` \- an array of matching events
+* `total_count` \- total number of matching events, given that you sent `query_type: "$count"` or `query_type: "$records_with_count"` in the request payload
+
+#### Examples
+
+##### Find all Events of a specific User
+
+json
+
+`{
+  "filters": [
+    {
+      "field": "created_at",
+      "op": "$range",
+      "value": {
+        "lt": "2022-12-02 15:04:57",
+        "gt": "2022-12-02 00:04:58"
+      }
+    },
+    {
+      "field": "user.id",
+      "op": "$eq",
+      "value": "my-user-id"
+    }
+  ],
+  "results_size": 100
+}
+`
+
+##### Find all Events from the US with a high abuse risk score
+
+json
+
+`{
+  "filters": [
+    {
+      "field": "created_at",
+      "op": "$range",
+      "value": {
+        "lt": "2022-12-02 15:04:57",
+        "gt": "2022-12-02 00:04:58"
+      }
+    },
+    {
+      "field": "ip.location.country_code",
+      "op": "$eq",
+      "value": "US"
+    },
+    {
+      "field": "scores.account_abuse.score",
+      "op": "$range",
+      "value": {
+        "gt": 0.9
+      }
+    }
+  ],
+  "results_size": 100
+}
+`
+
+##### Find all Events from Germany, US, and UK that were either challenged or had a Datacenter IP
+
+JSON
+
+`{
+  "filters": [
+    {
+      "field": "created_at",
+      "op": "$range",
+      "value": {
+        "lt": "2022-12-02 15:04:57",
+        "gt": "2022-12-02 00:04:58"
+      }
+    },
+    {
+      "field": "ip.location.country_code",
+      "op": "$in",
+      "value": ["DE", "US", "GB"]
+    },
+    {
+      "op": "$or",
+      "value": [
+        {
+          "field": "ip.privacy.datacenter",
+          "op": "$eq",
+          "value": true
+        }
+      ]
+    },
+    {
+      "op": "$or",
+      "value": [
+        {
+          "field": "policy.action",
+          "op": "$eq",
+          "value": "challenge"
+        }
+      ]
+    }
+  ],
+  "results_size": 100
+}
+
+`
+
+### Group API
+
+**Path**: `GET https://beta.castle.io/v1/events/group`
+
+The Group API lets you group the Events sent to Castle and compute aggregates on top of the groupings. It can help you answers question such as "how many users were seen on this particular device in the past week?" or "how many users used a TOR or datacenter IP in the past month?".
+
+For the full API specification of this API, please refer to our [API spec](https://reference.castle.io/#operation/groupEvents).
+
+#### Examples
+
+##### Get top 50 users sorted by their total USD transaction volume, along with Castle's maximum scores for each one
+
+JSON
+
+`{
+  "filters": [
+    {
+      "field": "created_at",
+      "op": "$range",
+      "value": {
+        "lt": "2022-12-12 14:05:20",
+        "gt": "2022-12-11 14:05:21"
+      }
+    },
+    {
+      "field": "transaction.amount.currency",
+      "op": "$eq",
+      "value": "USD"
+    }
+  ],
+  "columns": [
+    {
+      "func": "$max",
+      "name": "Account Abuse Score",
+      "field": "scores.account_abuse.score"
+    },
+    {
+      "func": "$max",
+      "name": "Account Takeover Score",
+      "field": "scores.account_takeover.score"
+    },
+    {
+      "func": "$max",
+      "name": "Bot Score",
+      "field": "scores.bot.score"
+    },
+    {
+      "func": "$last",
+      "name": "id",
+      "field": "user.id"
+    },
+    {
+      "func": "$last",
+      "name": "Email",
+      "field": "user.email"
+    },
+    {
+      "func": "$last",
+      "name": "cst_country",
+      "field": "ip.location.country_code"
+    },
+    {
+      "func": "$last",
+      "name": "cst_city",
+      "field": "ip.location.city"
+    },
+    {
+      "func": "$sum",
+      "name": "Transaction volume",
+      "field": "transaction.amount.value"
+    }
+  ],
+  "page": 1,
+  "results_size": 50,
+  "group_by": {
+    "fields": [
+      {
+        "field": "user.id"
+      }
+    ]
+  },
+  "sort": {
+    "field": "transaction.amount.value",
+    "func": "$sum",
+    "order": "desc"
+  }
+}
+
+`

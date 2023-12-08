@@ -1,0 +1,27 @@
+---
+title: "Block accounts using the same device"
+---
+
+Castle's device fingerprinting makes it possible to accurately identify the same device even if used by multiple different user accounts. This is referred to as [multi-accounting](/docs/multi-accounting) and is a common fraud problem. 
+
+Depending on your tolerance for this problem, you may want to either block these signups directly, or put the account on hold while reviewing it, especially if some kind of reward is given to new signups.
+
+With Castle provides ways to detect and take action on accounts using the same device. In the first part, we'll find all users sharing the same device by using the "Multiple Accounts Per Device" signal, which will trigger if there are more than one user on the device.
+
+> 👍
+> 
+> If you are ok with a few accounts sharing a device, such as a family computer and instead want to protect against excessive amounts, you can use the Metric "Accounts per Device" and set an arbitrary threshold on the number of accounts. See [Metrics](/docs/metrics#filtering-by-metrics) for information on how to do this
+
+#### Step 1\. Find and verify unwanted multi accounting
+
+#### Step 2\. Create a policy to deny multi accounting sign-ups
+
+Follow the steps [how to create a policy](/docs/creating-a-policy#creating-a-policy), and provide these options:
+
+* For name, use e.g. "Deny multi-accounters"
+* For group, select "Registration attempted".
+* For inline action, select "deny"
+* In the trigger section, pick the signal "Multiple accounts per device"
+* Verify the settings and hit "save"
+
+Finally, [enable and re-order](/docs/creating-a-policy#step-3-enable-and-reorder) the policy to put the new policy to work

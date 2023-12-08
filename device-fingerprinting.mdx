@@ -1,0 +1,79 @@
+---
+title: "Device fingerprinting"
+---
+
+Castle offers accurate device fingerprinting through a combination of client and server side technologies, which providers much greater identification accuracy compared to a cookie based or purely client side fingerprinting approach. Castle also keeps track of per-user profile data, such as historic devices and locations, which further increases fingerprinting accuracy.
+
+Accurate device fingerprinting is a foundation for dealing with many types of fraud, such as:
+
+* [Multi accounting](/docs/tutorial-block-accounts-using-the-same-device). Same individual signing up from the same device, in order to take advantage of free trials, or exploit referral bonuses.
+* [Account sharing](/docs/tutorial-detect-account-sharing). Many individuals sharing the same account, e.g. to avoid paying for extra seats.
+* [Account takeover](/docs/tutorial-challenge-logins-from-new-country-or-device). New devices logging in to accounts using stolen credentials.
+
+Through our SDKs for web and native mobile, device information is collected in order to determine uniqueness of devices. This allows Castle to reliably identify devices for future events, as well as monitor user interactions for anomalies.
+
+## Data collection
+
+The data collected by Castle's fingerprinting varies between platform and SDK used. The reason for this variance is that different platforms expose different device properties. In general, the properties include things like screen resolutions, pixel density, video and audio capabilities, installed plugins, and any exposed hardware properties such as number of CPU cores. 
+
+> 📘
+> 
+> Castle does not intentionally collect any sensitive or personal identifiable information, for instance no text strings are collected from the client.
+
+Below is an overview of collected parameters based on SDK. Please note that Castle is continuously improving this fingerprinting with new parameters.
+
+| Javascript SDK                  | iOS SDK                       | Android SDK                 |
+| ------------------------------- | ----------------------------- | --------------------------- |
+| Timezone information            | Unique device identifier      | Unique device identifier    |
+| User Agent                      | Memory information            | Memory information          |
+| Operating system                | Storage, used and available   | Storage, used and available |
+| CPU information                 | Location (if permission)      | Location (if permission)    |
+| System languages                | Screen resolution             | Screen resolution           |
+| Mouse and keyboard interactions | Device orientation            | Device orientation          |
+| Screen size                     | Carrier information           | Carrier information         |
+| Installed plugins               | CPU Information               | CPU Information             |
+| Canvas fingerprinting           | Emulation detection           | Emulation detection         |
+| WebGL information               | Jailbreak status              | Root status                 |
+| Headless browser checks         | Timezone information          | Timezone information        |
+| System and keyboard languages   | System and keyboard languages |                             |
+| Battery information             | Battery information           |                             |
+| Sensor data                     | Sensor data                   |                             |
+| Device name                     |                               |                             |
+
+> 👍
+> 
+> Availability
+> 
+> Most of the parameters above are available:
+> 
+> * To search and filter on in the Castle Dashboard
+> * When creating [rules and policies](/docs/policies).
+> * To add to allow/deny [lists](/docs/lists)
+
+## Cookies and storage
+
+Castle fingerprinting utilizes cookies and/or browser local storage to improve the accuracy of the device fingerprinting process. The cookie is a first-party cookie, set on the domain where castle.js is deployed, and with a long-lived expiration time. The value set in the cookie is only used for identifying unique devices and does not contain any sensitive information. During the configuration of castle.js, there is the possibility to disable the use of cookies as well as setting the cookie domain explicitly, see [castle.js configuration](/docs/sdk-browser#configuration) options for details.
+
+Please note that disabling cookies may lower the fingerprinting accuracy, potentially causing a single device to be seen as multiple by Castle.
+
+## Are device fingerprints always unique to a device?
+
+When generating the fingerprint, Castle tries to minimize the chance of "collisions", so that two different physical devices cannot be merged together to produce a single fingerprint. Because our risk models rely on so much more than just device fingerprints, we would rather miss a fingerprint sometimes than merge two separate devices by mistake. The reason behind this optimization is so your team will be able to confidently block or contact an individual seen using multiple accounts on the same device, without risking customer backlash due to a false positive.
+
+In the case where two users buy the same computer and both install Google Chrome at the same time, even though their configurations are nearly identical, our device fingerprinting would see them as different devices after we account for other pieces of context, such as when, how, and from what location a new user account was created.
+
+## Are there cases where the fingerprint becomes different for the same device?
+
+Despite clearing cookies and opening incognito windows in your browser, our device fingerprinting will continue to attempt to resolve to the same fingerprint, and on mobile devices, the fingerprints are designed to survive app uninstalls and memory wipes. Having said that, there will be times when we will prefer to create a new fingerprint rather than attempt to resolve an existing one, using the same optimization as described previously. This can happen when a fingerprint hasn't been seen for over a month, then returns after having reset the storage on their device or updated it to a new version, and then creates a brand new account. However, as long as the user logs into the same account that they have previously used, we will very likely resolve it to the same device.
+
+## Supported platforms
+
+Fingerprinting is available for the browser (Castle.js) and for various mobile application development platforms, including native iOS, native Android, React Native, and Flutter.
+
+## Security
+
+The fingerprinting data is represented by a variable called _request token_ which is designed to be generated fresh before each server-side request to Castle's APIs. Tokens are meant to be used only once per server-side request and will expire after 120 seconds. If a request token generated for a specific device is copied and used for a different device, we apply spoof detection in order to detect such tampering.
+
+## Open source
+
+Castle's mobile SDKs are open-source repositories on [Castle's GitHub account](https://github.com/castle). We welcome the creation of issues and pull requests from the community

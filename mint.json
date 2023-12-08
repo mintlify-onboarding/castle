@@ -10,6 +10,12 @@
       "light": "#FAFAFA",
       "dark": "#0E0E0E"
     },
+    "tabs": [
+      {
+          "name": "API Reference",
+          "url": "api-reference"
+      }
+  ],
     "backgroundImage": "/light.svg",
     "topbarCtaButton": {
       "name": "Request Access",
@@ -34,7 +40,15 @@
       }
     ],
     "navigation": [
-        {
+      {
+        "group": "Getting Started",
+        "pages": [
+          "an-introduction-to-castle",
+          "quickstart",
+          "a-full-integration"
+        ]
+      },
+      {
             "group": "risk_assessment",
             "pages": [
               "api-reference/risk_assessment/risk",

@@ -1,0 +1,39 @@
+---
+title: "Challenge logins from new country or device"
+---
+
+As a part of the measures for protecting your users against account takeovers, you can choose to activate step-up authentication, whenever the user shows behavior outside normal. Step-up verification can be anything that requires the user to prove that they own the account, like e.g. Multifactor authentication or a simple E-mail verification.
+
+In this guide we'll set up Castle to return a challenge response whenever a user logs in from a new country or device, but you can of course use any logic that meets your definition of suspicious. Once the user has passed the extra verification, it'll be [added to an allow list](/docs/tutorial-trust-a-users-device-for-14-days) to prevent from being challenged repeatedly. 
+
+![Overview of the challenge flow we'll set up at login](/images/dde701e-bild.png)
+
+Overview of the challenge flow we'll set up at login
+
+### Step 1\. Create the lists
+
+First, head over to the [lists management page](https://dashboard.castle.io/v2/lists) and create two new lists, illustrated by the ![:small-orange-diamond:](/images/small-orange-diamond.png ":small-orange-diamond:")orange boxes in the flowchart above:
+
+| List Name            | Primary Entity | Secondary Entity   | Auto-archivation time |
+| -------------------- | -------------- | ------------------ | --------------------- |
+| Challenged Users     | User ID        |                    |                       |
+| Trusted User Devices | User ID        | Device Fingerprint | 20160 (14 days)       |
+
+From the "Trusted User Devices" list, we'll set the default auto-archivation to 14 days (20160 seconds), but depending on your requirements you may choose to shorten/increase this.
+
+> 💡
+> 
+> The "Challenged Users" lists only have User ID as primary entitity to make sure that a started verification process always needs to be completed, regardless of which device that attempts the login. You may set the Secondary entity to Devce Fingerprint to only target a specific device with a challenge instead.
+
+### Step 2\. Create the policies
+
+From the [policies page](https://dashboard.castle.io/policies), we'll configure four policies. Once created, make sure to keep them ordered as in the table below, within the `$login.succeded` group.
+
+| Policy Name                     | Event Group              | Trigger                                     | Actions                                                                                              |
+| ------------------------------- | ------------------------ | ------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Allow trusted device logins     | $login \+ $succeeded     | List matches "Trusted User Devices"         | \- Return "allow" action                                                                             |
+| Challenge users in list         | $login \+ $succeeded     | List matches "Challenged Users"             | \- Return "challenge" action                                                                         |
+| Challenge new device or country | $login \+ $succeeded     | Signals is one of new\_device, new\_country | \- Add to list "Challenged Users"\- Return "challenge" action                                        |
+| Trust device on challenge       | $challenge \+ $succeeded | No condition                                | \- Add to list "Trusted User Devices"\- Archive from list "Challenged Users"\- Return "allow" action |
+
+![:information-source:](/images/information-source.png ":information-source:") Once the policies has been created and re-ordered, remember to enable them by pressing the green toggle button

@@ -1,0 +1,109 @@
+---
+title: "Signals"
+---
+
+Castle exposes a number of _signals_ in the API response body: A list of potentially risky properties and behaviors that were detected on the event.
+
+#### Example API response
+
+JSON
+
+`{
+  "action": "deny",
+  "scores": {
+    "account_abuse": {
+	    "score": 0.67
+    },
+    "account_takeover": {
+	    "score": 0.77
+    },
+    "bot": {
+	    "score": 0.34
+    }
+  },
+  "signals": {
+    "bot_behavior": {},
+    "proxy_ip": {},
+    "disposable_email": {},
+    "multiple_accounts_per_device": {}
+  },
+  // ...
+}
+`
+
+That is, this event originated from a proxy IP address (`proxy_ip`) where the device information indicates that the event was scripted (`bot_behavior`) and there are many different accounts in use on the device the event was sent from (`multiple_accounts_per_device`). Also, the user's email address is from a domain commonly used to create one-off addresses (`disposable_email`).
+
+> 📘
+> 
+> Note: This feature is enabled for environments created after April 19, 2021\. Please contact Castle support if you would like to enable this feature for environments created before this date.
+
+---
+
+## List of signals
+
+### Automated activity
+
+| Name                    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| bot\_behavior           | Castle detects bot like behavior by analyzing several factors, including keystroke and mouse movements, how the user interacts with the application, repetitive event sequences and IP-reputation.Bot behavior can be an indication of all sorts of unwanted behavior, including fake account creation, testing of stolen credit card numbers and credential testing, but also more benign behavior like integration testing using browser automation software.                                                                                                                                                 |
+| credential\_stuffing    | Castle continuously monitors all traffic to detect patterns and isolate requests that are sent as part of a credential stuffing attack. Due to the nature of credential stuffing attacks, analysis of the failed logins is an essential part of the detection.Credential stuffing is an automated type of attack in which stolen account credentials, in particular e-mail addresses, are used to gain unauthorized access to user accounts. Credential stuffing attacks, unlike credential cracking, do not attempt to guess any passwords with brute force, but rather leverage a list of leaked credentials. |
+| generated\_email        | This signal is a strong indicator of automated attempts, in which the attacker is either repeating the same email pattern or submitting completely random emails, typically during registration. The email provider may still be legitimate and non-disposable.                                                                                                                                                                                                                                                                                                                                                 |
+| high\_activity\_account | This signal learns what is typical behavior for a user account and then detects anomalous bursts of requests. This is often correlated with automated attacks or abuse.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| high\_activity\_device  | This signal learns what is typical behavior for a device and then detects anomalous bursts of requests. This is often correlated with automated attacks or abuse.                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| high\_activity\_ip      | This signal learns what is the typical rate of traffic coming from IP addresses and then detects anomalous bursts of requests. This is often correlated with automated attacks or abuse.                                                                                                                                                                                                                                                                                                                                                                                                                        |
+
+### Anomalous behavior
+
+| Name                            | Description                                                                                                                                                                                                                                                                                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| impossible\_travel              | This is triggered by comparing the user's current location with their last known location and then detecting trips that are highly unlikely, or even impossible, given the time between the two events. This signal correlates with man-in-the-middle attacks, account takeovers, and offshore attacks. |
+| multiple\_accounts\_per\_device | The device, from which this event originated, has been used to log into multiple user accounts. This could indicate account abuse or promotion abuse.                                                                                                                                                   |
+
+### Device data error
+
+| Name                   | Description                                                                                                                                                                                                                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| missing\_device\_data  | The data forwarded from the device to the server is empty. This is possibly due to an attacker attempting to bypass the client-side analysis, however, it could also be due to a misconfigured integration.                                                                                                         |
+| invalid\_device\_data  | The data forwarded from the device to the server could not be interpreted, most likely due to a replay attack or request tampering.                                                                                                                                                                                 |
+| replayed\_device\_data | This signal triggers whenever the device data collected by Castle has been re-used, which can be an indication of a script or bot. Developer note: $attempted and $succeeded (or $failed) status events are usually sent to Castle within the same request. The same request token will be valid for both of these. |
+
+### Device intelligence
+
+| Name                           | Description                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| spoofed\_device                | There is evidence that the request is not coming from a genuine device but that the device parameters have been changed or are fabricated. This includes using a device emulator that mimics the entire client context of the device or simply changing the user agent string in the browser.                                           |
+| headless\_browser              | A headless browser is a browser that can be used without a graphical interface. It can be controlled programmatically to automate attacks like web scraping, fake account registrations, and credit card testing.                                                                                                                       |
+| http\_client\_library          | HTTP client libraries are used to send requests to an application with relatively little effort using a command line or a script. They are frequently used in less sophisticated but high-volume automated attacks and abuse.                                                                                                           |
+| web\_crawler                   | A web crawler is an application that searches and indexes documents on the Internet. It should be considered abnormal if an authenticated user is claiming to be a web crawler.                                                                                                                                                         |
+| carrier\_ip\_country\_mismatch | This signal will trigger if there is a mismatch between the IP country and the mobile carrier country, and they are not neighboring countries.                                                                                                                                                                                          |
+| missing\_headers               | The HTTP headers typically sent by web browsers are missing, which can be an indication that the request was initiated by a script. However, in case you see this signal on the majority of requests, it could be due to a misconfigured integration. See [API Reference](https://reference.castle.io/#operation/risk) for the details. |
+| timezone\_area\_mismatch       | The configured timezone area (continent) on the device is different from the one indicated by the IP location. This could be an indication of using a proxy.                                                                                                                                                                            |
+
+### Email intelligence
+
+| Name                          | Description                                                                                                                                                                                                                                                                                                           |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| disposable\_email\_domain     | Castle checks the email domain against lists of known disposable email providers.A disposable email domain indicates that the email address was issued by a service that issues temporary inboxes that expire after a short period of time. Examples of these providers are Mailinator, TempMail, and Guerrilla Mail. |
+| invalid\_email                | An email address that does not conform to internet email standards, or which does not exist on the recipient's server. Examples include addresses without the @ sign, addresses that include certain special characters and/or spaces, or failed SMTP authentication attempts.                                        |
+| low\_quality\_email           | This signal triggers whenever signs of randomness or profanities are found in the email. This typically means that the user signed up without a serious intent to use the service.                                                                                                                                    |
+| multiple\_aliases\_per\_email | Triggers when there are variations of the same email address, e.g. [\[email protected\]](/cdn-cgi/l/email-protection#b2c6d7c1c69983f2d7cad3dfc2ded79cd1dddf) and [\[email protected\]](/cdn-cgi/l/email-protection#0f7b6a7c7b243d4f6a776e627f636a216c6062)                                                            |
+
+### IP intelligence
+
+| Name           | Description                                                                                                                                                                                                                                                                                                |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| abuse\_ip      | An IP address that was recently found in one of many publicly accessible abuse and spam databases.                                                                                                                                                                                                         |
+| datacenter\_ip | An IP address belonging to a hosting provider, data center, or content delivery network can serve to provide anonymity, as well as be used to launch large-scale automated fraud campaigns.                                                                                                                |
+| proxy\_ip      | Proxy servers are used to mask the true location of a device. This signal identifies requests coming from proxy servers both by running the IP address against lists of known proxy IPs and by identifying timezone and timing anomalies that indicate that the traffic was routed through a proxy server. |
+| tor\_ip        | Tor anonymizes internet traffic and is frequently used by fraudsters to conceal their true location. A Tor IP is an IP address that matches an entry in Tor's official list of exit nodes.                                                                                                                 |
+
+### Novel user attributes
+
+| Name              | Description                                                                                                                                                 |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| new\_country      | This signal triggers when a user account was accessed from a new country. It only triggers once per user and country combination.                           |
+| new\_device       | This signal triggers when a user account was accessed from a new device. It only triggers once per device and does not trigger for the user's first device. |
+| new\_device\_type | This signal triggers when a user account was accessed from a new device type. It only triggers once per user and device type combination.                   |
+| new\_isp          | This signal triggers when a user account was accessed from a new Internet Service Provider. It only triggers once per user and ISP combination.             |
+| new\_language     | This signal triggers when a user account was accessed from a device using a new language setting. It only triggers once per user and language combination.  |
+| new\_os           | This signal triggers when a user account was accessed from a new Operating System. It only triggers once per user and OS combination.                       |

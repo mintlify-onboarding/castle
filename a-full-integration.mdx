@@ -1,0 +1,221 @@
+---
+title: "A complete integration"
+description: "All the steps necessary to complete a successful integration with Castle and use the more advanced monitoring and analytics functionality beyond device intelligence."
+---
+
+## Introduction
+
+Castle is a fraud detection platform that helps identify sophisticated types of fraud that may go unnoticed. Using the Castle API, you can send user activity (called events) from your frontend and backend to Castle, which will assess the risk associated with each action and provide valuable data to help improve your fraud operations.
+
+This guide explains the supported events and offers recommendations on which ones to integrate. In general, successful integration involves the following steps:
+
+1. **Add the _client-side_ integration** to collect device and behavioral data, as well as monitor user actions such as page views, form submissions, and any other business-specific user activity. Both [browser](/docs/sdk-browser) and [mobile](/docs/sdk-mobile) clients are supported. In many cases, this first part of the integration will provide a good picture of the amount of fraud and abuse on your platform before proceeding to the next step.
+2. **Send _server-side_ key activities** such as registration, login, profile updates, and transactions, as well as any business-critical custom events. In contrast to client-side events, server-side events can also be used for real-time blocking of activity and will return a set of data such as risk score, risk signals, and policy settings.
+3. **Configure alerting** via [webhooks](/docs/subscribe-to-webhooks) or [Slack](/docs/connect-to-slack) to be notified whenever Castle detects suspicious activity and use the results to improve your fraud operations.
+4. **Configure inline blocking** to use the inline risk assessment capabilities of the Risk and Filter APIs and take action against suspicious users in real-time.
+
+## Phase 1\. Monitoring client-side activity
+
+Castle's client-side SDKs play a crucial role in protecting your platform from fraud by providing device fingerprinting, user interaction monitoring, and in-browser event tracking.
+
+All client-side SDKs, web and mobile, serve two main purposes:
+
+* **Tracking client-side events**. Track important in-app events directly from the client. We recommend starting here.
+* **Creating request tokens**. A unique token that should be passed to the server whenever the Castle backend APIs are called. This won't be needed until you start sending data to the server-side APIs.
+
+See the guides on how to integrate Castle in [browser](/docs/sdk-browser) and [mobile](/docs/sdk-mobile) clients to kick of the integration.
+
+> 👍
+> 
+> The quickest integration path
+> 
+> Most developers will start by adding the [Browser SDK](/docs/sdk-browser) to their web application as this integration resembles other lightweight analytics platforms and will rely on **frontend** code to send data to Castle. You can always check out the [quickstart](/docs/quickstart) to get a better grasp of how the client-side integration works.
+
+## Phase 2\. Protecting server-side actions
+
+By now, you're probably already integrated the client-side SDKs and monitoring user activity, so it's time to utilize its second use-case -- generating _request tokens_.
+
+Generating request tokens through the client-side SDKs **is required** in order for Castle to profile the user and the devices when calling the Risk and Filter APIs. There is also the Log API outlined below, which doesn't require a request token, but as a result it won't calculate risk scores, signals, nor device fingerprints.
+
+Device and user behavioral data is tokenized and automatically passed to your backend services as a **request token**. The Castle back-end SDKs in turn pass this data to the Castle service.
+
+![](/images/2426844-castle-request_token.png "castle-request_token.png")
+
+See the guides for integrating Castle in the [browser](/docs/sdk-browser) and into [mobile apps](/docs/sdk-mobile).
+
+### The Risk, Filter, and Log APIs
+
+Back-end SDKs used to track user activity and take action against suspicious users. There are two primary back-end APIs that you'll use:
+
+* [Risk API](https://reference.castle.io/#operation/risk) — track user activity and receive a real-time risk assessment for _authenticated_ users. This is the API you'll be using the most.
+* [Filter API ](https://reference.castle.io/#operation/filter)— a variant of the Risk API but designed to do an early assessment of _anonymous_ visitors before they register or log in to your service. You can also call this API [from the edge](/docs/edge-integration) to block bot and spam requests before they reach your back-end app.
+
+There's also the Log API, that you'll be less likely to use during the initial integration:
+
+* [Log API](https://reference.castle.io/#operation/log) — primarily used for when you want to send out of band activity into Castle in order to complete the user journey. Examples of activity can be logs from your authentication provider or chargeback events from your payment processor. This API is more lax on which fields are sent and doesn't require IP and request header data, but it will parse it whenever they're provided, however, it will not calculate a risk score or generate any behavioral signals.
+
+### Testing server-side calls without request tokens
+
+A `request_token` parameter is required to be sent with every request to the Filter and Risk API endpoints, but sometimes that part of the integration hasn't been implemented yet, or you need an easier way to test different scenarios with your server-side code. [Test Tokens](/docs/test-tokens) makes testing your server-side integration of Castle a breeze.
+
+### Supported activities
+
+Below is a list of supported activities and which API to use them with. In general, we recommend tracking as many activities as possible. Doing so will improve Castle's risk models and provide a better audit trail when you are investigating fraudulent activity.
+
+> 📘
+> 
+> How much to integrate?
+> 
+> A minimal integration typically involves sending `$registration` and `$login` events, but in order to maximize the accuracy of Castle's risk models, you should send **all** the _recommended_ activities, as well as any `$custom` events that are important to your business. Risk scores for `$profile_update` and `$transaction` activities have higher accuracy when preceded by a `$registration` or `$login` activity.
+
+#### Registration
+
+Use `$registration` events to track new account creation and stop fake and synthetic identities from registering new accounts. If a user follows all the proper steps to create an account, use the Risk API with a status of `$succeeded`. The Risk API will then return a Castle risk assessment for the user, which you can use to allow the account to be created, or block it if Castle detects a suspicious user. If a user fails to follow the proper steps to create an account, use the Log API and a status of `$failed`. 
+
+| API    | Event         | Status     |                    |
+| ------ | ------------- | ---------- | ------------------ |
+| Risk   | $registration | $succeeded | 👉 **Recommended** |
+| Filter | $registration | $failed    | Optional           |
+
+> 👍
+> 
+> Complete the [guide for sending registration activity](/docs/registration-activity)
+
+#### Login
+
+Use `$login` events to track user logins and stop account takeover attempts from humans and bots. In addition to assessing successful logins, failed login tracking is an important aspect of detecting credential stuffing or brute force attacks. 
+
+If a user successfully logs in (i.e. provides correct credentials), use the Risk API with a status of `$succeeded`. The Risk API will return a Castle risk assessment for the user, which you can use to allow, challenge or deny the login. If you put users through a challenge workflow, the guide [Automating Account Recovery](/docs/automate-account-recovery) for information on the Castle APIs to use to notify Castle about the outcome of the challenge.
+
+If a user does not successfully log in, use the Filter API with a status of `$failed`. Additionally, there's a `$logout` event that can be useful in both account takeover and abuse scenarios.
+
+| API    | Event   | Status     |                    |
+| ------ | ------- | ---------- | ------------------ |
+| Risk   | $login  | $succeeded | 👉 **Recommended** |
+| Filter | $login  | $failed    | 👉 **Recommended** |
+| Risk   | $logout | $succeeded | Optional           |
+
+> 👍
+> 
+> Complete the [guide for sending login activity](/docs/login-activity)
+
+#### Profile update
+
+Send `$profile_update` events to track when users update their email, phone, password, address, or payment information. Profile updates are only supported for authenticated users. As with `$login` events, the Risk API will return a Castle risk assessment. This assessment can be used to allow, challenge or deny the profile update.
+
+| API  | Event            | Status     |                    |
+| ---- | ---------------- | ---------- | ------------------ |
+| Risk | $profile\_update | $attempted | 👉 **Recommended** |
+| Risk | $profile\_update | $succeeded | Optional           |
+| Risk | $profile\_update | $failed    | Optional           |
+
+> 👍
+> 
+> Complete the [guide for sending profile update activity](/docs/profile-update-activity)
+
+#### Transaction
+
+Send `$transaction` events to track bank or credit card transactions. Both successful and failed transactions are important data points in detecting fraud. As with `$login` events, the Risk API will return a Castle risk assessment. This assessment can be used to allow, challenge or deny a transaction.
+
+| API  | Event        | Status     |                    |
+| ---- | ------------ | ---------- | ------------------ |
+| Risk | $transaction | $attempted | 👉 **Recommended** |
+| Risk | $transaction | $succeeded | Optional           |
+| Risk | $transaction | $failed    | Optional           |
+
+> 👍
+> 
+> Complete the [guide for sending transaction activity](/docs/transaction-activity)
+
+#### Challenge
+
+Send `$challenge` events to track step-up challenge flows such as MFA or KYC. These events are helpful to see in a user activity timeline, and they also help train Castle's risk models.
+
+| API  | Event      | Status     |          |
+| ---- | ---------- | ---------- | -------- |
+| Risk | $challenge | $requested | Optional |
+| Risk | $challenge | $succeeded | Optional |
+| Risk | $challenge | $failed    | Optional |
+
+> 👍
+> 
+> See the [guide for account takeover workflows](/docs/automate-account-recovery) for more details on how to send challenge activity
+
+#### Password reset flow
+
+Send `$password_reset_request` events to track attempts to reset a user password, which can be an early signal of an account takeover. With an [incorrectly implemented password reset](https://cheatsheetseries.owasp.org/cheatsheets/Forgot%5FPassword%5FCheat%5FSheet.html) flow, the attacker can run a user enumeration attack, which can be used to increase the success rate of an account takeover attack. By sending the below events to Castle, you can catch and mitigate fraud at an early stage. The Filter API returns a Castle risk assessment, which can be used to allow or deny the password reset request.
+
+Once the user received the instructions on how to reset the password, typically an email or text message with a reset link, you'll send the `$profile_reset` event to the Risk API to mark the completion of the reset flow. Note this event is named `profile`, not `password`, since it allows you to also track accounts that other properties such as their phone number or authentication method reset.
+
+| API    | Event                     | Status     |          |
+| ------ | ------------------------- | ---------- | -------- |
+| Filter | $password\_reset\_request | $attempted | Optional |
+| Filter | $password\_reset\_request | $succeeded | Optional |
+| Filter | $password\_reset\_request | $failed    | Optional |
+| Risk   | $profile\_reset           | $attempted | Optional |
+| Risk   | $profile\_reset           | $succeeded | Optional |
+| Risk   | $profile\_reset           | $failed    | Optional |
+
+> 👍
+> 
+> Complete the [guide for sending password reset activity](/docs/profile-reset-activity)
+
+### Using the inline API response
+
+The API response from both the Risk and Filter APIs can be used to write granular risk logic. Read the [complete list of signals](/docs/signals-reference) and the guide on Policies for more information.
+
+> 📘
+> 
+> As a starting point, we recommend blocking any attempts where any of the scores are **above 0.9**. See the guides for each Activity for specific recommendations on how to implement this.
+
+##### Example response from Risk and Filter APIs
+
+Note that the `risk` field has been replaced by the `scores.account_abuse` field. These two values will always be identical, and it's recommended that you leverage the latter.
+
+JSON
+
+`{
+  "risk": 0.67,
+  "scores": {
+    "account_abuse": {
+	    "score": 0.67
+    },
+    "account_takeover": {
+	    "score": 0.77
+    },
+    "bot": {
+	    "score": 0.34
+    }
+  },
+  "signals": {
+    "new_device": {},
+    "new_country": {},
+    "proxy_ip": {},
+    "impossible_travel": {},
+    "multiple_accounts_per_device": {},
+  },
+  "policy": {
+    "action": "challenge",
+    "name": "Trigger MFA on suspicious logins",
+    "id": "e14c5a8d-c682-4a22-bbca-04fa6b98ad0c",
+    "revision_id": "b5cf794e-88c0-426e-8276-037ba1e7ceca"
+  },
+  // The response from the Risk API includes an additional device object,
+  // which is a reference to the user's current device, and which can be
+  // used in the Castle feedback APIs. This object is not included in the 
+  // response from the Filter API
+  "device": {
+    "token": "eyJhbGciOiJIUzI1NiJ9.eyJ0b2tlbiI6IlQyQ"
+  }
+}
+`
+
+## Checklist for going live
+
+Once you have added all the recommended activities above, make sure to verify the following before going live in production:
+
+![:white-check-mark:](/images/white-check-mark.png ":white-check-mark:") Verify that the client-side SDKs for web and native mobile apps are forwarding the `request_token` on 100% of the request to your backend.  
+![:white-check-mark:](/images/white-check-mark.png ":white-check-mark:") Verify that you're forwarding the end-user's IP in production and not the private, internal IP from your firewall or CDN.  
+![:white-check-mark:](/images/white-check-mark.png ":white-check-mark:") Check the [debugger](https://dashboard.castle.io/debug-console/events) for any warnings or errors. See the [Quickstart](/docs/quickstart) section for guidance  
+![:white-check-mark:](/images/white-check-mark.png ":white-check-mark:") Forward **all** the HTTP headers from the original client request in the `context.headers` field. Use the helper methods in the Castle SDKs  
+![:white-check-mark:](/images/white-check-mark.png ":white-check-mark:") Switch to a **Production API Key**

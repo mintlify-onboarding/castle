@@ -1,0 +1,46 @@
+---
+title: "Authentication Method"
+---
+
+The optional `authentication_method` object can be used for any of the following events:
+
+* `$registration` – what method was used to create the user account
+* `$login` – what method was used to create a new authentication session
+* `$challenge` – what method was requested from or resolved by the users as additional verification
+
+By sending this information, not only does it provide valuable insight during fraud investigations when used to filter down the dataset as well as configuring policies, but it also helps improve Castle's risk models.
+
+| Field   | Type                                                                                         | Description                                                                                       |
+| ------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| type    | $authenticator, $biometrics, $email, $password, $phone, $push, $security\_key, $social, $sso | See below for detailed explanation                                                                |
+| variant | _String_                                                                                     | Optional description of the method variant, e.g. facebook when type is $social, or sms for $phone |
+
+##### Authentication types
+
+Detailed description of the available options for the `type` parameter
+
+| Type           | Description                                                      |
+| -------------- | ---------------------------------------------------------------- |
+| $authenticator | Google Authenticator, or any other OTP app                       |
+| $biometrics    | Apple FaceID/TouchID, Microsoft Hello, etc                       |
+| $email         | Email confirmation/magic link or PIN code                        |
+| $kba           | Knowledge-based authentication, such as security questions       |
+| $password      | Standard password entry, combined with email, phone, or username |
+| $phone         | Phone confirmation/magic link or PIN code                        |
+| $push          | Mobile push notification                                         |
+| $security\_key | Yubikey, Google Titan, etc                                       |
+| $social        | Social sign-in with Google, Facebook, Apple, etc                 |
+| $sso           | SAML, e.g. Okta or Rippling                                      |
+
+##### Example
+
+JSON
+
+`{
+ // ...
+  "authentication_method": {
+    "type": "$phone",
+    "variant": "sms"
+  }
+}
+`

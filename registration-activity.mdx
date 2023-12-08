@@ -1,0 +1,368 @@
+---
+title: "Protecting the registration"
+description: "How to send $registration activity to Castle and use the response to prevent bad actors from signing up for new accounts."
+---
+
+> 🚧
+> 
+> Make sure you've first [integrated the client-side integration](/docs/a-full-integration#client-side-integration) in order to generate the "request tokens" required for each call to the Risk and Filter API.
+
+The registration activity is sent to Castle whenever a user registers for an account on your platform. It doesn't necessarily mean that the user onboarding process is completed, but at least that the user account was created.
+
+The inline response from the Risk endpoint can be used to detect and fake accounts, or trigger additional verification when too many behavioral trigger.
+
+How to add the `$registration` activity:
+
+1. A user submits a form with desired account information, e.g. name, email and password
+2. The email (or other identifier) is checked against the user database for whether it already exists or not.
+3. If the account doesn't exist, create the account record as you normally would and send `$registration` with `$succeeded` status.
+4. If the user already exists, send `$registration` with `$failed` status.
+
+![1982](/images/86b403a-castle-registration-flow.png "castle-registration-flow.png")
+
+Where in the registration flow to send the different statuses
+
+## Sending successful registration activity
+
+Use the [Risk API](https://reference.castle.io/#operation/risk) to send information about the user at the time of account creation.
+
+![:notebook-with-decorative-cover:](/images/notebook-with-decorative-cover.png ":notebook-with-decorative-cover:") You will need to generate and forward the `request_token` string from your frontend by using the [Browser SDK](/docs/sdk-browser) or a [Mobile SDK](/docs/sdk-mobile).
+
+RubyPHPPythonJavaNode
+
+`castle = ::Castle::Client.new
+
+begin
+  # see https://docs.castle.io/docs/a-full-integration#client-side-integration
+  token = request.params['castle_request_token']
+  
+  # extract a sanitized list HTTP headers and IP address
+  context = Castle::Context::Prepare.call(request)
+
+  res = castle.risk(
+    request_token: token,
+    type: '$registration',
+    status: '$succeeded',
+    user: {
+      id: 'ca1242f498', # Required. A unique, persistent user identifier
+      registered_at: '2012-12-02T00:30:08.276Z', # Recommended
+      email: '[[email protected]](/cdn-cgi/l/email-protection)', # Recommended
+      phone: '+1415232183', # Optional. E.164 format
+      name: 'Mike Gray', # Optional
+      address: { # Optional
+        line1: "200 Fell St",
+        line2: "Apt 1028",
+        city: "San Francisco",
+        postal_code: "94103",
+        region_code: "CA",
+        country_code: "US" # Required. ISO-3166 country code
+      },
+      traits: { # Custom user data for visualization purposes
+        nationality: 'US',
+        birth_date: '1976-02-02'
+      }
+    },
+    authentication_method: { # Optional. See link below
+      type: '$password' # The most common type
+    },
+    context: {
+      ip: context[:ip],
+      headers: context[:headers]
+    },
+    properties: { # Custom event data for visualization purposes
+      solved_captcha: true,
+      attempts: 3
+    }
+  )
+
+  if res[:policy][:action] == 'deny'
+    # IMPLEMENT: Deny attempt
+  end
+  
+rescue Castle::InvalidRequestTokenError
+  # Deny attempt. Likely a bad actor bypassing fingerprinting
+rescue Castle::Error => e
+  # Allow attempt. Data missing or invalid, or a server or timeout error
+end
+`
+
+`// NOTE: See the Ruby example for a more comprehensive set of parameters
+
+try {
+  $token = $_POST['castle_request_token'];
+
+  $res = Castle::risk([
+    'type' => '$registration',
+    'status' => '$succeeded',
+    'request_token' => $token,
+    'user' => [
+      'id' => $user->id,
+      'email' => $user->email
+    ],
+    'context' => [
+      'ip' => Castle_RequestContext::extractIp(),
+      'headers' => Castle_RequestContext::extractHeaders()
+    ]
+  ]);
+
+  if ($res->risk > 0.9) {
+    // IMPLEMENT: Deny attempt
+  }
+
+} catch (Castle_InvalidRequestTokenError $e) {
+  // Deny attempt. Likely a bad actor bypassing fingerprinting
+} catch (Castle_Error $e) {
+  // Allow attempt. Data missing or invalid, or a server or timeout error
+}
+`
+
+`# NOTE: See the Ruby example for a more comprehensive set of parameters
+
+try:
+    token = request.form['castle_request_token'] # Using Flask
+    context = ContextPrepare.call(request)
+
+    client = Client()
+
+    res = client.risk({
+        'type': '$registration',
+        'status': '$succeeded',
+        'request_token': token,
+        'user': {
+            'id': user.id,
+            'email': user.email
+        },
+        'context': {
+          'ip': context['ip'],
+          'headers': context['headers']
+        }
+    })
+
+    if res['risk'] > 0.9:
+        # IMPLEMENT: Deny attempt
+
+except InvalidRequestTokenError:
+    # Deny attempt. Likely a bad actor bypassing fingerprinting
+except CastleError as e:
+    # Allow attempt. Data missing or invalid, or a server or timeout error
+`
+
+`// NOTE: See the Ruby example for a more comprehensive set of parameters
+
+String token = request.getParameter("castle_request_token");
+
+Castle castle = Castle.initialize();
+CastleContextBuilder context = castle.contextBuilder().fromHttpServletRequest(request)
+
+try {
+  CastleResponse response = castle.client().risk(ImmutableMap.builder()
+    .put("type", "$registration")
+    .put("status", "$succeeded")
+    .put(Castle.KEY_CONTEXT, ImmutableMap.builder()
+      .put(Castle.KEY_IP, context.getIp())
+      .put(Castle.KEY_HEADERS, context.getHeaders())
+      build()
+    )
+    .put(Castle.KEY_USER, ImmutableMap.builder()
+      .put("id", user.getId())
+      .put("email", user.getEmail())
+      .build()
+    )
+    .put(Castle.KEY_REQUEST_TOKEN, token)
+    .build()
+  );
+  
+  float risk = response.json().getAsJsonObject().get("risk").getAsFloat();
+
+  if (risk > 0.9) {
+    // IMPLEMENT: Deny attempt
+  };
+  
+} catch (CastleApiInvalidRequestTokenException requestTokenException) {
+    // IMPLEMENT: Deny attempt. Likely a bad actor
+} catch (CastleRuntimeException runtimeException) {
+    // Data missing or invalid. Needs to be fixed
+}
+`
+
+`// NOTE: See the Ruby example for a more comprehensive set of parameters
+
+try {
+  var token = request.body["castle_request_token"]; // Using Express
+
+  const castle = new Castle({ apiSecret: 'YOUR SECRET HERE' });
+  const context = ContextPrepareService.call(request, {}, castle.configuration);
+
+  const res = castle.risk({
+    type: '$registration',
+    status: '$succeeded',
+    request_token: token,
+    user: {
+      id: user.id,
+      email: user.email
+    },
+    context: {
+      ip: context.ip,
+      headers: context.headers
+    }
+  });
+
+  if (res.risk > 0.9) {
+    // IMPLEMENT: Deny attempt
+  }
+} catch (e) {
+  if (e instanceof InvalidRequestTokenError) {
+     // IMPLEMENT: Deny attempt. Likely a bad actor
+  } else if (e instanceof APIError) {
+     // Allow attempt. Data missing or invalid, or a server or timeout error
+  }
+}
+`
+
+![:notebook-with-decorative-cover:](/images/notebook-with-decorative-cover.png ":notebook-with-decorative-cover:") See the documentation for [authentication\_method](/docs/authentication-method) to see all the available options, such as how to specify account creation with an email or SMS magic link.
+
+### Taking action
+
+The response from the call to the Risk API can then be used to take the appropriate action:
+
+* As a starting point, we recommend putting the newly created account through additional verification whenever the risk score is above 0.9\. If the user fails to successfully complete the additional verification within a desired timeframe, you should delete the account, as it will otherwise just occupy unnecessary space in your database as well as potentially skew your product metrics.
+* The stricter recommendation is to prompt the user for additional verification when then risk score is above 0.6, and for responses with a score of 0.9 and above, drop the request and mark the account for deletion.
+
+## Sending failed registration activity
+
+The [Filter API](https://reference.castle.io/#operation/filter) is used for sending anonymous user activity, such as a failed registration attempt. Instead of passing the email or phone in the `user` object, you'll pass the form parameters in the `params` object, where `email` and `phone` are the only supported fields. If you're doing lookups in your app based on the user-submitted email or phone, you can pass the matching user identifier as `matching_user_id` which will resolve any existing user in the resulting event.
+
+RubyPHPPythonJavaNode
+
+`castle = ::Castle::Client.new
+
+begin
+  token = request.params['castle_request_token']
+  context = Castle::Context::Prepare.call(request)
+
+  res = castle.filter(
+    type: '$registration',
+    status: '$failed',
+    matching_user_id: 'ca1242f498', # Optional
+    params: {
+      email: request.params['email']
+    },
+    request_token: token,
+    context: {
+      ip: context[:ip],
+      headers: context[:headers]
+    }
+  )
+  
+rescue Castle::InvalidRequestTokenError
+  # Deny attempt. Likely a bad actor bypassing fingerprinting
+rescue Castle::Error => e
+  # Allow attempt. Data missing or invalid, or a server or timeout error
+end
+`
+
+`try {
+  $token = $_POST['castle_request_token'];
+
+  $res = Castle::filter([
+    'type' => '$registration',
+    'status' => 'failed',
+    'matching_user_id' => 'ca1242f498', // Optional
+    'params' => [
+      'email' => $_POST['email']
+    ]
+    'request_token' => $token,
+    'context' => [
+      'ip' => Castle_RequestContext::extractIp(),
+      'headers' => Castle_RequestContext::extractHeaders()
+    ]
+  ]);
+
+} catch (Castle_InvalidRequestTokenError $e) {
+  // Deny attempt. Likely a bad actor bypassing fingerprinting
+} catch (Castle_Error $e) {
+  // Allow attempt. Data missing or invalid, or a server or timeout error
+}
+`
+
+`try:
+    token = request.form['castle_request_token'] # Using Flask
+    context = ContextPrepare.call(request)
+
+    client = Client()
+
+    res = client.filter({
+        'type': '$registration',
+        'status': '$failed',
+        'matching_user_id': 'ca1242f498', # Optional
+        'params': {
+          'email': request.form['email']
+        }
+        'request_token': token,
+        'context': {
+          'ip': context['ip'],
+          'headers': context['headers']
+        }
+    })
+    
+except InvalidRequestTokenError:
+    # Deny attempt. Likely a bad actor bypassing fingerprinting
+except CastleError as e:
+    # Allow attempt. Data missing or invalid, or a server or timeout error
+`
+
+`String token = request.getParameter("castle_request_token");
+
+Castle castle = Castle.initialize();
+CastleContextBuilder context = castle.contextBuilder().fromHttpServletRequest(request)
+
+try {
+  CastleResponse response = castle.client().filter(ImmutableMap.builder()
+    .put("type" "$registration")
+    .put("status", "$failed")
+    .put(Castle.KEY_CONTEXT, ImmutableMap.builder()
+      .put(Castle.KEY_IP, context.getIp())
+      .put(Castle.KEY_HEADERS, context.getHeaders())
+      build()
+    )
+    .put("matching_user_id", "ca1242f498") // Optional
+    .put("params", ImmutableMap.builder()
+      .put("email", request.getParameter("email"))
+      .build()
+    .put(Castle.KEY_REQUEST_TOKEN, token)
+    .build()
+  );
+} catch (CastleApiInvalidRequestTokenException requestTokenException) {
+    // IMPLEMENT: Deny attempt. Likely a bad actor
+} catch (CastleRuntimeException runtimeException) {
+    // Data missing or invalid. Needs to be fixed
+}
+`
+
+`try {
+  var token = request.body["castle_request_token"]; // Using Express
+
+  const castle = new Castle({ apiSecret: 'YOUR SECRET HERE' });
+  const context = ContextPrepareService.call(request, {}, castle.configuration);
+
+  const res = castle.filter({
+    type: '$registration',
+    status: '$failed',
+    request_token: token,
+    matching_user_id: 'ca1242f498', // Optional
+    params: {
+      email: request.body["email"]
+    },
+    context: {
+      ip: context.ip,
+      headers: context.headers
+    }
+  });
+} catch (e) {
+  if (e instanceof InvalidRequestTokenError) {
+     // IMPLEMENT: Deny attempt. Likely a bad actor
+  } else if (e instanceof APIError) {
+     // Allow attempt. Data missing or invalid, or a server or timeout error
+  }
+}
+`

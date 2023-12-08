@@ -1,0 +1,195 @@
+---
+title: "Protecting anonymous actions"
+---
+
+It is common to experience bots and bad actors attempting to abuse your service at registration or login, and in most cases you would want to block them before they even access the service. At registration, you might want to block out multi-accounters or disposable emails before the user accounts are created, and at login you might want to block out any bots before they even test the credentials against your database.
+
+The [Filter API](https://reference.castle.io/#operation/filter) lets you send and assess user activity for _anonymous_ users.
+
+The `filter` call is primarily designed to be used with the for the following events along with the `$attempted` status:
+
+* `$login`
+* `$registration`
+* `$password_reset_request`
+
+We also recommend, as outlined in the integration guides for [registration](/docs/registration-activity) and [login](/docs/login-activity), to use the Filter API for `$failed` `$login` and `$registration` calls. Note that these can also be sent to the Log API, but that would degrade risk scoring performance since the risk score isn't evaluated for Log events.
+
+Lastly, since your public `$password_reset_request` form won't authenticate users, both the `$succeeded` and `$failed` statuses should be sent to Filter, and not to Risk like for all other events.
+
+#### The differences from the Risk API
+
+* instead of `user.id`, `matching_user_id` is used to reference a user in your database when it matches the user-submitted form parameters
+* instead of a `user` object, there's a `params` object the format of `params.email` and `params.phone` is not validated. If the email or phone value matches any existing user in Castle, the `user` object will be resolved and populated for this event.
+* an `authenticated: false` attribute will be set on the events so that they can conditionally be filtered out from user timelines
+
+#### Example: Blocking a signup before an account is created
+
+![:notebook-with-decorative-cover:](/images/notebook-with-decorative-cover.png ":notebook-with-decorative-cover:") You will need to generate and forward the `request_token` string from your frontend by using the [Browser SDK](/docs/sdk-browser) or a [Mobile SDK](/docs/sdk-mobile).
+
+RubyPHPPythonJavaNode
+
+`castle = ::Castle::Client.new
+
+begin
+  token = request.params['castle_request_token']
+  context = Castle::Context::Prepare.call(request)
+
+  res = castle.filter(
+    type: '$registration',
+    status: '$attempted',
+    request_token: token,
+    context: {
+      ip: context[:ip],
+      headers: context[:headers]
+    },
+    matching_user_id: 'ca1242f498', # Optional
+    params: {
+      email: request.params['email']
+    },
+  )
+
+  if res[:policy][:action] == 'deny'
+    # IMPLEMENT: Deny attempt
+  end
+
+rescue Castle::InvalidRequestTokenError
+  # Deny attempt. Likely a bad actor bypassing fingerprinting
+rescue Castle::Error => e
+  # Allow attempt. Data missing or invalid, or a server or timeout error
+end
+`
+
+`try {
+  $token = $_POST['castle_request_token'];
+
+  $res = Castle::filter([
+    'type' => '$registration',
+    'status' => '$attempted',
+    'request_token' => $token,
+    'context' => [
+      'ip' => Castle_RequestContext::extractIp(),
+      'headers' => Castle_RequestContext::extractHeaders()
+    ],
+    'matching_user_id' => 'ca1242f498', // Optional
+    'params' => [
+      'email' => $_POST['email']
+    ]
+  ]);
+
+  if ($res->risk > 0.9) {
+    // IMPLEMENT: Deny attempt
+  }
+
+} catch (Castle_InvalidRequestTokenError $e) {
+  // Deny attempt. Likely a bad actor bypassing fingerprinting
+} catch (Castle_Error $e) {
+  // Allow attempt. Data missing or invalid, or a server or timeout error
+}
+`
+
+`try:
+    token = request.form['castle_request_token'] # Using Flask
+    context = ContextPrepare.call(request)
+
+    client = Client()
+
+    res = client.filter({
+        'type': '$registration',
+        'status': '$attempted',
+        'request_token': token,
+        'context': {
+          'ip': context['ip'],
+          'headers': context['headers']
+        },
+      'matching_user_id': 'ca1242f498', # Optional
+      'params': {
+        'email': request.form['email']
+      }
+    })
+
+    if res['risk'] > 0.9:
+        # IMPLEMENT: Deny attempt
+
+except InvalidRequestTokenError:
+    # Deny attempt. Likely a bad actor bypassing fingerprinting
+except CastleError as e:
+    # Allow attempt. Data missing or invalid, or a server or timeout error
+`
+
+`String token = request.getParameter("castle_request_token");
+
+Castle castle = Castle.initialize();
+CastleContextBuilder context = castle.contextBuilder().fromHttpServletRequest(request)
+
+try {
+  CastleResponse response = castle.client().filter(ImmutableMap.builder()
+    .put("type", "$registration")
+    .put("status", "$attempted")
+    .put(Castle.KEY_CONTEXT, ImmutableMap.builder()
+      .put(Castle.KEY_IP, context.getIp())
+      .put(Castle.KEY_HEADERS, context.getHeaders())
+      build()
+    )
+    .put(Castle.KEY_REQUEST_TOKEN, token)
+    .put("matching_user_id", "ca1242f498") // Optional
+    .put("params", ImmutableMap.builder()
+      .put("email", request.getParameter("email"))
+      .build()
+    .build()
+  );
+  
+  float risk = response.json().getAsJsonObject().get("risk").getAsFloat();
+
+  if (risk > 0.9) {
+    // IMPLEMENT: Deny attempt
+  };
+  
+} catch (CastleApiInvalidRequestTokenException requestTokenException) {
+    // IMPLEMENT: Deny attempt. Likely a bad actor
+} catch (CastleRuntimeException runtimeException) {
+    // Data missing or invalid. Needs to be fixed
+}
+`
+
+`try {
+  var token = request.body["castle_request_token"]; // Using Express
+
+  const castle = new Castle({ apiSecret: 'YOUR SECRET HERE' });
+  const context = ContextPrepareService.call(request, {}, castle.configuration);
+
+  const res = castle.filter({
+    type: '$registration',
+    status: '$attempted',
+    request_token: token,
+    context: {
+      ip: context.ip,
+      headers: context.headers
+    },
+    matching_user_id: 'ca1242f498', // Optional
+    params: {
+      email: request.body["email"]
+    },
+  });
+
+  if (res.risk > 0.9) {
+    // IMPLEMENT: Deny attempt
+  }
+} catch (e) {
+  if (e instanceof InvalidRequestTokenError) {
+     // IMPLEMENT: Deny attempt. Likely a bad actor
+  } else if (e instanceof APIError) {
+     // Allow attempt. Data missing or invalid, or a server or timeout error
+  }
+}
+`
+
+### Tuning and taking action
+
+We recommend implementing the follow user experience based on Castle's risk score:
+
+* **Block the worst of the worst:** when you're protecting the **login** form, when Castle returns 90 or above, you should display the same “Wrong credentials” message you would use for when the user actually get the credentials wrong. This way a bot or bad actor can’t tell the difference between a rule being triggered and a simple incorrect password. When you're protecting the **registration** form, instead return a message such as "Sorry, you can't create an account right now". Before going live with blocking, you can always visualize all the attempts in the Events view in the Castle dashboard.
+* **CAPTCHA the gray area:** CAPTCHAs doesn't always deliver the best user experience, but if you can keep the customer exposure low, they can be an effective component in a risk-based approach. Use the Events view to tune the proportion of registrations you're ok with presenting a CAPTCHA. Normally this threshold would end up somewhere around 60-90\. [See this guide for how to trigger a CAPTCHA based on the Castle response](/docs/using-captcha-with-castle)
+
+![Use the Explore view to tune the thresholds for when to block and show a CAPTCHA](/images/378a41b-castle-tune-score.png)
+
+Use the Explore view to tune the thresholds for when to block and show a CAPTCHA

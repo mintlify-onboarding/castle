@@ -1,0 +1,11 @@
+---
+title: "Exporting data from Castle"
+---
+
+There are multiple ways for you to consume Castle's data, for instance when you're looking to feed it into your other log and security management tools:
+
+* If you're an Enterprise customer, you can use the [Events API](/docs/enterprise-using-events-api) to programmatically run any query available from the dashboard.
+* Ingest [the response of the inline Risk and Filter APIs](/docs/a-full-integration#example-response-from-risk-and-filter-apis). This will offer you a 1:1 mapping of all the Risk and Filter calls you send to Castle and lets you run additional queries on our risk scores and signals.
+* [Subscribe to webhooks](/docs/subscribe-to-webhooks) to get alerted when a policy triggers Deny or Challenge. This will only trigger once per device so it will be less data than the inline APIs, but might be relevant for alerting use-cases
+* Use the Devices API to [fetch the list of devices](/docs/user-devices-api#step-1-listing-all-devices-for-a-user) for a specific user.
+* Manually export up to 10,000 events from the Event view in the dashboard. You can always run any query first to reduce the result set down to something that fits within the 10,000 limitation.

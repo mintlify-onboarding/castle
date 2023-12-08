@@ -1,0 +1,42 @@
+---
+title: "Test Tokens"
+---
+
+A `request_token` parameter is required to be sent with every request to the Filter and Risk API endpoints. In order to test Castle without having a client-side integration in place, you can use **Test Tokens** to evaluate different risk scenarios.
+
+### Format
+
+`test|<parameter>:<value>|<parameter>:<value>...`
+
+### Usage
+
+Test Tokens will streamline your testing process by giving you a way to force certain aspects and characteristics of a request, without doing a full integration. For example, if you want to simulate a user using Firefox on a Windows device in the US, you can use the following Test Token value:
+
+`request_token: "test|device:firefox_on_windows|ip:us-ca"`
+
+> 🚧
+> 
+> Reminder
+> 
+> Test tokens are only supported on **Sandbox** environments.
+
+### Test Token Parameters & Values
+
+| Parameter     | Possible Values                                                                                     | Description                                                          |
+| ------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| device        | chrome\_on\_macsafari\_on\_macfirefox\_on\_macchrome\_on\_windowsfirefox\_on\_windowsbot\_on\_linux | Pre-determined device combinations to represent various device types |
+| ip            | seus-cajp                                                                                           | IP location of the request                                           |
+| policy.action | allowchallengedeny                                                                                  | Force a policy action to be returned by Castle                       |
+| risk          | value from 0-1.0                                                                                    | Set the Castle risk score to a specific value                        |
+
+### Examples
+
+Mac computer using a Chrome browser, connecting from California, US:
+
+`test|device:chrome_on_mac|ip:us-ca
+`
+
+Headless browser, connecting from Japan:
+
+`test|device:bot_on_linux|ip:jp
+`

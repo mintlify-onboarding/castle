@@ -1,0 +1,64 @@
+---
+title: "Events"
+---
+
+## List of recognized event types
+
+The event types below are the ones supported and recognized by Castle. Please see the API reference for more details.
+
+### Filter, Risk, and Log
+
+| Name                      | Description                                                                                                                                                                                                |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| $login                    | A user logging into your application. See [Protecting the login](/docs/login-activity)                                                                                                                     |
+| $registration             | A visitor signing up to become a user of your application. See [Protecting the registration](/docs/registration-activity)                                                                                  |
+| $profile\_update          | A user updating their email, phone, name, or password.                                                                                                                                                     |
+| $profile\_reset           | A user resetting their email, phone, name, or password.                                                                                                                                                    |
+| $transaction              | A user transacting, e.g. a withdrawal, transfer, or purchase. See [Protecting the transaction](/docs/transaction-activity)                                                                                 |
+| $password\_reset\_request | A visitor initiating a password reset flow. This event is not meant to be used for when a visitor _completes_ the resetting of their password, which is where you'd instead send a $profile\_update event. |
+| $challenge                | A user is sent through an additional verification flow, such as CAPTCHA, Two-factor or Email-verification. This event supports the status $requested in addition to $failed and $succeeded.                |
+| $custom                   | Any business-specific user activity that's not covered by the events above. The status field isn't supported for these events, and you should instead populate name.                                       |
+
+### Track (legacy)
+
+| Name                             | Description                                                                                                                                                               |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| $password\_reset.succeeded       | The user completed all the steps in the password reset process and the password was successfully reset. Password resets do not require knowledge of the current password. |
+| $password\_reset.failed          | Use to record when a user failed to reset their password.                                                                                                                 |
+| $password\_reset\_request.failed | The user failed to request a password reset.                                                                                                                              |
+| $incident.mitigated              | User account has been reset.                                                                                                                                              |
+| $review.escalated                | User confirmed malicious activity.                                                                                                                                        |
+| $challenge.requested             | Record when a user is prompted with additional verification, such as two-factor authentication or a captcha.                                                              |
+| $challenge.succeeded             | Record when additional verification was successful.                                                                                                                       |
+| $challenge.failed                | Record when additional verification failed.                                                                                                                               |
+| $session.extended                | Record when a user session is extended, or use any time you want to re-authenticate a user mid-session.                                                                   |
+
+### Authenticate (legacy)
+
+The events below are officially supported as "recognized" events. Custom events may be used for special circumstances, but we strongly recommend using events from this list.
+
+| Name                                | Description                                                                                                                                                               |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| $login.succeeded                    | Record when a user successfully logs in / enters valid credentials.                                                                                                       |
+| $login.failed                       | Record when a user failed to log in due to invalid credentials.                                                                                                           |
+| $login.attempted                    | Record when a login is attempted, but credential validation has not yet occurred.                                                                                         |
+| $logout.succeeded                   | Record when a user logs out.                                                                                                                                              |
+| $profile\_update.succeeded          | Record when a user updated their profile (including password, email, phone, etc).                                                                                         |
+| $profile\_update.failed             | Record errors when updating profile.                                                                                                                                      |
+| $profile\_update.attempted          | Record when a user profile update is being attempted.                                                                                                                     |
+| $registration.succeeded             | Capture account creation, both when a user signs up as well as when created manually by an administrator.                                                                 |
+| $registration.failed                | Record when an account failed to be created.                                                                                                                              |
+| $registration.attempted             | Record when a registration is being attempted, but before it has been validated and account creation occurs.                                                              |
+| $password\_reset.succeeded          | The user completed all the steps in the password reset process and the password was successfully reset. Password resets do not require knowledge of the current password. |
+| $password\_reset.failed             | Use to record when a user failed to reset their password.                                                                                                                 |
+| $password\_reset\_request.attempted | The user attempted to request a password reset.                                                                                                                           |
+| $password\_reset\_request.succeeded | The user successfully requested a password reset.                                                                                                                         |
+| $password\_reset\_request.failed    | The user failed to request a password reset.                                                                                                                              |
+| $incident.mitigated                 | User account has been reset.                                                                                                                                              |
+| $review.escalated                   | User confirmed malicious activity.                                                                                                                                        |
+| $review.resolved                    | User confirmed safe activity. (deprecated)                                                                                                                                |
+| $challenge.requested                | Record when a user is prompted with additional verification, such as two-factor authentication or a captcha.                                                              |
+| $challenge.succeeded                | Record when additional verification was successful.                                                                                                                       |
+| $challenge.failed                   | Record when additional verification failed.                                                                                                                               |
+| $transaction.attempted              | Record when a user attempts an in-app transaction, such as a purchase or withdrawal.                                                                                      |
+| $session.extended                   | Record when a user session is extended, or use any time you want to re-authenticate a user mid-session.                                                                   |

@@ -1,0 +1,90 @@
+---
+title: "API Custom Parameters"
+description: "Adding custom data to Castle events"
+---
+
+You may add custom user or event details to the payload of Castle's recognized events. These custom parameters are added as key-value pairs within the `properties` or `user.traits` objects in event payloads. Although both custom properties, the `properties` and `user.traits` objects carry slightly different semantics:
+
+* Key-value pairs added to the `properties` object applies to the event to which they are attached. Use this for custom details that add context to the event. For instance, if you use the standard `$profile_update.succeeded` event, you may include `"event_type": "billing change"` or `"update_type": "phone number"`, etc.
+* Key-value pairs added to the `user.traits` object of an event are intended to apply to the user and will be persisted in Castle's copy of the user record. Think of these `user.traits` as known facts about the user. By default, this is where user email and registration date would be located. Information such as `user_type` (admin, power-user, etc.) or any other relevant user/account information may also be added here
+
+The example below shows where to insert custom `user.traits` and `properties`
+
+![Example of custom user traits and properties in the API payload](/images/3618196-Screenshot_2023-02-15_at_14.31.16.png)
+
+Example of custom user traits and properties in the API payload
+
+### Features and limitations of custom properties
+
+#### Limit on the number of discovered traits
+
+Castle automatically scans all the custom properties you send in order to detect data type and add them to a registry. Castle will detect up to 50 custom fields in total, regardless of whether you send them via `properties` or `user.traits`. For example, you might send 42 fields in `properties` and 8 fields in `user.traits`. Once the limit is reached, Castle will stop discovering any new fields, so if you need to remove or change any of these you need to contact support.
+
+#### Supported data types
+
+Castle only detects the following data types: string, boolean, number. The `number` type can be both integers and floating point numbers.
+
+#### Changing data types
+
+Castle registers the data type of a custom property the first time it's seen. If your subsequent requests contain the same custom property but with a different data type, Castle will silently drop it without attempting to type-cast it. 
+
+For example, if your first request contains: `{ "properties": { "is_premium": true } }` (a boolean data type), and a subsequent request contains `{ "properties": { "is_premium": "true" } }` (a string data type), Castle will not register `properties.is_premium` at all due to the data type mismatch.
+
+#### Nested objects
+
+Castle can detect fields in nested objects. Each nested field counts as 1 toward the limit. For example, the payload below counts as 4 distinct properties:
+
+JSON
+
+`{
+  "properties": {
+    "account": {
+      "type": "premium",
+      "details": {
+        "country": "US",
+        "max_transaction_amount": 500000,
+        "2fa_enabled": true 
+      }
+    }  
+  }
+}
+`
+
+These properties will be available under the following names across Castle's Dashboard and APIs:
+
+* `account.type`
+* `account.details.country`
+* `account.details.max_transaction_amount`
+* `account.details.2fa_enabled`
+
+#### Arrays
+
+Castle will ignore any array values passed in `properties` and `user.traits`.
+
+#### Special characters
+
+The dot (".") character is reserved as a special keyword, and it's treated the same as if you send a nested object. The following two payloads are equivalent from Castle's perspective:
+
+JSON
+
+`{ 
+  "properties": {
+    "account": { 
+      "type": "premium"
+    }
+  }
+}
+`
+
+JSON
+
+`{ 
+  "properties": {
+    "account.type": "premium"
+  }
+}
+`
+
+### Using Custom Parameters to send Personally Identifiable Information (PII)
+
+It is up to you to decide whether to include any personally identifiable information (PII) about your user in custom parameters sent to Castle. If you do include such information, please take note of [Castle's privacy policy](https://castle.io/privacy/) for protecting user information and our [APIs for deleting](/docs/gdpr-compliance) such information on request. If you choose to include an `email` key-value pair within `user.traits`, Castle will use it to enrich the available event data. To mitigate concerns about PII, you may either omit the information entirely or anonymize it by using techniques like data masking or pseudonymization.

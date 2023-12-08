@@ -1,0 +1,36 @@
+---
+title: "Trust a user's device for 14 days"
+description: "Reducing friction for legitimate users"
+---
+
+Castle can be used to trigger step-up authentication in case of suspicious logins, for example by [setting up a policy](/docs/creating-a-policy#creating-a-policy) to challenge the user, e.g. with e-mail or SMS, when logging in from a new location or device. When the user successfully completes the challenge, it is good practice to temporarily trust (or bless) this device for some time, in order to reduce friction and thereby frustration for the user.
+
+With Castle, you can set up a flow like this using lists and policies. In the scenario below, we'll set up a flow that approves and trusts the user's device **for logins**, for 14 days after completing a challenge. 
+
+#### Step 1\. Create a list for trusted user devices
+
+1. Go to the [list management page](https://dashboard.castle.io/v2/lists)
+2. Create a new list called "Trusted user devices" and fill out these values:
+![](/images/ea8f1c6-image.png) 
+
+In order to set the device trust time to 14 days, the list auto-archivation time is set to 20160 minutes. You may change this time to suite your use-case.
+
+#### Step 2\. Set up policies for challenge and login events
+
+In this step, you'll set up two policies that make use of the list created in Step 1.
+
+1. One for always returning "allow" on `$login.succeeded` events whenever the device is in the "Trusted User Devices" list.  
+   1. Give the policy a name, like "Allow trusted devices"  
+   2. For group, select "Login Succeeded"  
+   3. For trigger, pick the list created in Step 1\. "Trusted user devices"  
+   4. Scroll down to Actions, and select "Allow" for "Inline Action"  
+   5. Verify the settings and hit "Save"
+2. And another one for adding the device to the "Trusted User Devices" list, whenever the `$challenge.succeeded` event is received.  
+   1. Give the policy a name, like "Trust device after challenge"  
+   2. For group, select "Challenge succeeded"  
+   3. Under Risk Score settings, select "Account Abuse Score" and a custom risk range that goes from 0 to 100, to make sure this policy always trigger  
+   4. Under Actions, select "allow" for "inline action"  
+   5. Configure the list action to create an item in the "Trusted User Devices" list when this policy matches.  
+   6. Verify the settings and hit "Save"
+
+For both of these new policies, make sure to order them before any other policies under each event section

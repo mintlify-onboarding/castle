@@ -1,0 +1,117 @@
+---
+title: "Segment"
+description: "This guide shows how to integrate Castle by connecting your existing Segment integration."
+---
+
+You'll find the official Castle destination documentation [here](https://segment.com/docs/connections/destinations/catalog/castle/)
+
+### Getting Started
+
+1. Navigate to **Connections > Catalog** in the [Segment web app](https://app.segment.com/castle/destinations/catalog/castle).
+2. Search for **Castle** in the Destinations tab of the catalog, and select it, and click **Configure Castle**.
+3. Choose the sources you want to connect the destination to.
+4. Enter the "Publishable Key" in the Publishable Key field. Find the Publishable Key on the Castle dashboard. Calls are now visible in Castle dashboards in real-time.
+
+> 👍
+> 
+> **NOTE**: Castle ingests Segment Client-side events. Server-side events are dropped and not processed. Castle supports web, Android and iOS integrations through Segment.
+
+---
+
+#### iOS
+
+1. Add the Castle Segment dependency  
+   1. With Xcode:  
+   In the Xcode **File** menu, click **Add Packages** in the resulting dialog where you can search for Swift packages. In the search field, enter the URL to this repository: [https://github.com/castle/analytics-ios-integration-castle](https://github.com/castle/analytics-ios-integration-castle)  
+   You can optionally pin the package to a specific branch or version, and select the project in your workspace to which you'll add the package. When you're done, click **Add Package**.  
+   2. With Package.swift  
+   Package.swift  
+   `.package(  
+       name: "SegmentCastle",  
+       url: "https://github.com/castle/analytics-ios-integration-castle",  
+       from: "1.0.0"  
+   ),  
+   `
+2. Next, add the Castle destination to your analytics instance:  
+swif  
+`let analytics = Analytics(configuration: Configuration(writeKey: "<YOUR_WRITE_KEY_HERE>"))  
+let castleDestination = CastleDestination(userJwt: "<USER_JWT>")  
+analytics.add(plugin: castleDestination)  
+`
+
+#### Android
+
+1. You can add the Castle Segment dependency two ways:  
+   1. Add this line to your gradle file:  
+   gradle  
+   `implementation 'com.segment.analytics.kotlin.destinations:castle:<latest_version>'  
+   `  
+   2. Add the following for Kotlin DSL:  
+   kotlin  
+   `implementation("com.segment.analytics.kotlin.destinations:castle:<latest_version>")  
+   `
+2. Next, add the Castle destination to your analytics instance:  
+kotlin  
+`analytics = Analytics("<YOUR WRITE KEY>", applicationContext)  
+  analytics.add(plugin = CastleDestination(userJwt = "<USER_JWT>"))  
+`
+
+### Page
+
+If you're not familiar with the Segment Specs, take a look to understand what the [page method](https://segment.com/docs/connections/spec/page/) does. An example call would look like:
+
+`analytics.page()
+`
+
+`page` calls will be sent to Castle as `$page` events.
+
+### Track
+
+If you're not familiar with the Segment Specs, take a look to understand what the [Track method](https://segment.com/docs/connections/spec/track/) does. An example call would look like:
+
+`analytics.track('Added to Cart')
+`
+
+`track` calls will be sent to Castle as a `$custom` events.
+
+---
+
+### Secure Mode
+
+In order to prevent user information from being spoofed by a bad actor, it is highly recommended to send the user information as a signed JWT when Castle.js is used in production.
+
+From your backend code, you need to encode the user as a JWT and sign it using your Castle "API Secret". Then, when Castle receives the JWT, the integrity of the user data will be verified to ensure that the data isn't being tampered with.
+
+Below is an example of how to generate a JWT on your backend using the Ruby language:
+
+Ruby
+
+`jwt_from_backend = JWT.encode({
+  id: '97980cfea0067',
+  email: '[[email protected]](/cdn-cgi/l/email-protection)'
+}, ENV.fetch('CASTLE_API_SECRET'), 'HS256')
+`
+
+You then need to transfer the `user_jwt` object to your frontend either via a separate API call, or by injecting the code using a templating language:
+
+JavaScript
+
+`` var userJwt = "<%= jwt_from_backend %>";
+
+// Then use the `userJwt` argument instead of `user` when using any of the tracking methods
+Castle.page({userJwt: userJwt});
+
+analytics.identify('97980cfea0067', {
+  email: '[[email protected]](/cdn-cgi/l/email-protection)',
+}, {
+  Castle: {
+    userJwt: userJwt
+  }
+});
+ ``
+
+When Castle receives a JWT version of the user object, its contents will override the user object sent the standard Segment way.
+
+### Next steps
+
+Once you've enabled the Castle Segment integration, we recommend starting to protect your backend actions by following the steps in [this integration guide](/docs/a-full-integration#phase-2-protecting-server-side-actions). Once completed, you'll be able to fully leverage Castle's [risk scoring](/docs/risk-scoring) and [rules engine](/docs/creating-a-policy)

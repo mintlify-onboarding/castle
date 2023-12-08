@@ -1,0 +1,49 @@
+---
+title: "Auto-ban abusive IPs for 24h"
+---
+
+In this tutorial we'll set up a rule that temporarily bans IPs that we consider to be abusive. The exact definition of what's abusive may vary depending on your business, but you can use this guide as a starting point. In this case we'll consider an IP to be abusive whenever any of the following occurs:
+
+* It has more than 10 failed logins within the last hour.
+* It has the `Abuse IP` signal, which means that it is present on publicly available IP reputation lists.
+
+### Step 1\. Validate the rule
+
+We'll use [the Explore view](https://dashboard.castle.io/v2/events) to inspect the resulting data and make changes to ensure that the rule matches our expectations. For condition 1) we might want to consider limiting this to IP that also have had fewer than e.g. 5 users within the last day, to minimize the risk of false positives in case of shared mobile IPs:
+
+![The filter settings for our Abusive IP rule](/images/03a521e-image.png)
+
+The filter settings for our Abusive IP rule
+
+Once we're happy, we'll head over to the [Lists](https://dashboard.castle.io/v2/lists) page to create the List we'll use as block list.
+
+### Step 2\. Create the block list
+
+In this step we'll create a new List that will act as the IP block list, where each entry will expire after 24h. Head over to the [List management](https://dashboard.castle.io/v2/lists) page and create a new list with the following settings:
+
+* **Name**: Blocked IPs
+* **Primary Entity**: IP
+* **Auto-archivation time**: 1440 (minutes)
+
+### Step 3\. Configure policies
+
+In total, we'll create two policies: 
+
+The first one is for returning a deny response whenever an IP matches what's in the "Blocked IPs" list that we just created. Whenever the IP is in this list, we'll set the policy up to deny the request, **regardless of which event**. Use these settings:
+
+* **Name**: Deny blocklisted IPs
+* **Event group**: Before All Events
+* **Trigger**, select the "Blocked IPs" list that we just created
+* **Inline action**: Deny
+
+The second Policy will make sure that we add an IP to the "Blocked IPs" list whenever the triggering conditions we set up in Step 1 are met. Use these settings:
+
+* **Name**: Put abusive IPs in block list
+* **Event group**: Before All Events
+* **Trigger**: Combination of failed logins per IP and the Abuse IP signal. See screenshot below
+* **Inline action**: Deny
+* Finally, choose to add a list item in the "Blocked IPs" list
+
+![](/images/a661ffa-bild.png)
+
+![:information-source:](/images/information-source.png ":information-source:") Once the two policies are created, make sure to enable them by clicking the green toggle button.

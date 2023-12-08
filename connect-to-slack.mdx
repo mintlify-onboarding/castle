@@ -1,0 +1,56 @@
+---
+title: "Connecting to Slack"
+---
+
+Castle can send notifications to Slack channels whenever items are added to a [List](/docs/lists) via a [Policy](/docs/creating-a-policy). This means that your team can get real time notifications whenever a condition of your choice is applied, and have it be based on any type of entity, such as User, IP or email domain. Slack notifications are a great way of monitoring the impact of Policies before deciding to take action, e.g. to highlight users [sharing accounts](/docs/tutorial-detect-account-sharing).
+
+> 📘
+> 
+> Note: For more info on Castle’s Terms of Use and Privacy Policy, please visit the [Castle Trust Center](https://castle.io/trust)
+
+![Example Slack notification](/images/4aebf45-Social_Thumb3.png)
+
+Example Slack notification
+
+## Setup
+
+> 💡
+> 
+> To set up the [Castle app for Slack](https://slack.com/apps/A05A21591R8-castle) you need to be an admin in your Slack organization.
+
+The first time you click the Slack button, Castle will ask you to go through the configuration flow for the Castle app for Slack, unless this is already configured. Head over to the [List management page](https://dashboard.castle.io/v2/lists) and click the Slack button. 
+
+![Configuration of the Castle Slack app is triggered the first time an alert is setup](/images/971b863-image_8.png)
+
+Configuration of the Castle app for Slack is triggered the first time an alert is setup
+
+## Enable Slack alerts
+
+To enable Slack alerts for a specific list, simply click the Slack button, and pick the desired channel from the drop down. You can configure multiple channels per list.
+
+> 💡
+> 
+> Slack notifications are only dispatched when items are added to a List via Policy automation. If you add items manually, this will not trigger a notification
+
+![Setting up a Slack notification](/images/1d64b1d-setup_slack_alert_new.gif)
+
+Setting up a Slack notification
+
+## Remove Slack alerts
+
+To remove an existing Slack alert, just click the cross icon next to the channel name
+
+![Removing a Slack alert](/images/c4bc93e-image_9.png)
+
+Removing a Slack alert
+
+## Sending a test notification
+
+1. Configure and set up Slack alerts for the "Blocked users" list by following the previous steps.
+2. In your sandbox environment, [create a new Policy](https://dashboard.castle.io/v2/policies/new) with the following settings:  
+![](/images/75d9cde-52514ce-bild.png)
+3. Once created, enable the policy by clicking the toggle button to the right side on the entry.
+4. Follow the [5 minute quickstart guide](/docs/quickstart) to send a test event from your browser. Make sure you use the exact same user details in order to trigger the signal for disposable e-mail domains.
+5. Navigate to the "Blocked users" list, and see that there is a new entry based on the event that you just sent. This means that a Slack alert has been sent to the channel you configured while setting them up.  
+![](/images/c78addf-bild.png)
+6. If you need to send another test notification, you can trigger the page view again, but with a different disposable email, such as `[[email protected]](/cdn-cgi/l/email-protection)`
