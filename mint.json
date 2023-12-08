@@ -1,0 +1,95 @@
+{
+    "name": "Castle",
+    "logo": {
+      "light": "/logo/light.png",
+      "dark": "/logo/dark.png"
+    },
+    "favicon": "/favicon.svg",
+    "colors": {
+      "primary": "#0E0E0E",
+      "light": "#FAFAFA",
+      "dark": "#0E0E0E"
+    },
+    "backgroundImage": "/light.svg",
+    "topbarCtaButton": {
+      "name": "Request Access",
+      "url": "https://castle.io/contact/"
+    },
+    "topbarLinks": [
+      {
+        "name": "Login",
+        "url": "https://dashboard.castle.io/login"
+      }
+    ],
+    "anchors": [
+      {
+        "name": "Changelog",
+        "icon": "megaphone",
+        "url": "https://castle.io/changelog/"
+      },
+      {
+        "name": "Blog",
+        "icon": "newspaper",
+        "url": "https://blog.castle.io/"
+      }
+    ],
+    "navigation": [
+        {
+            "group": "risk_assessment",
+            "pages": [
+              "api-reference/risk_assessment/risk",
+              "api-reference/risk_assessment/filter"
+            ]
+          },
+          {
+            "group": "logging",
+            "pages": [
+              "api-reference/logging/log"
+            ]
+          },
+          {
+            "group": "lists",
+            "pages": [
+              "api-reference/lists/list-all-lists",
+              "api-reference/lists/create-a-new-list",
+              "api-reference/lists/return-a-list-by-id",
+              "api-reference/lists/update-a-list",
+              "api-reference/lists/delete-list",
+              "api-reference/lists/search-lists"
+            ]
+          },
+          {
+            "group": "list_items",
+            "pages": [
+              "api-reference/list_items/create-a-new-list-item",
+              "api-reference/list_items/search-list-items",
+              "api-reference/list_items/fetch-a-list-item-by-id",
+              "api-reference/list_items/update-a-list-item",
+              "api-reference/list_items/archive-a-list-item",
+              "api-reference/list_items/unarchive-a-list-item"
+            ]
+          },
+          {
+            "group": "privacy",
+            "pages": [
+              "api-reference/privacy/request-user-data",
+              "api-reference/privacy/delete-user-data",
+              "api-reference/privacy/request-user-data-1",
+              "api-reference/privacy/delete-user-data-1"
+            ]
+          },
+          {
+            "group": "events",
+            "pages": [
+              "api-reference/events/search-events",
+              "api-reference/events/get-events-schema",
+              "api-reference/events/group-events"
+            ]
+          }
+    ],
+    "footerSocials":
+      {
+          "twitter": "https://twitter.com/castle_io?lang=en",
+          "linkedin": "https://www.linkedin.com/company/castle-intelligence/"
+      }
+  }
